@@ -47,13 +47,10 @@ const dotClasses = computed(() => {
   <span
     :class="[
       'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium tracking-tight border',
-      typeClasses
+      typeClasses,
     ]"
   >
-    <span
-      v-if="showDot"
-      :class="['w-1.5 h-1.5 rounded-full', dotClasses]"
-    />
+    <span v-if="showDot" :class="['w-1.5 h-1.5 rounded-full', dotClasses]" />
     <slot />
   </span>
 </template>

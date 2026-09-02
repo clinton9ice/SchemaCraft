@@ -161,7 +161,10 @@ export function useFileSystem() {
       else if (currentLang === 'prisma') targetExt = '.prisma'
       else if (currentLang === 'drizzle' || currentLang === 'typeorm') targetExt = '.ts'
 
-      const baseName = (fileName.value || 'schema').replace(/\.(sql|dbml|prisma|ddl|pgsql|ts|txt)$/i, '')
+      const baseName = (fileName.value || 'schema').replace(
+        /\.(sql|dbml|prisma|ddl|pgsql|ts|txt)$/i,
+        ''
+      )
       const suggestedFileName = `${baseName}${targetExt}`
 
       const win = typeof window !== 'undefined' ? (window as WindowWithFileSystemApi) : null
@@ -261,9 +264,11 @@ export function useFileSystem() {
       const baseFileName = (fileName.value || 'schema').replace(/\.[^/.]+$/, '')
       const exportName = `${baseFileName}-diagram-${timestamp}.${format}`
 
-      const activeBg = typeof window !== 'undefined'
-        ? getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#1e1f1c'
-        : '#1e1f1c'
+      const activeBg =
+        typeof window !== 'undefined'
+          ? getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() ||
+            '#1e1f1c'
+          : '#1e1f1c'
 
       let dataUrl = ''
       const config = {

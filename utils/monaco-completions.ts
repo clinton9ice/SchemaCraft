@@ -36,22 +36,24 @@ export function getSqlCompletions(
   const lineContent = model.getLineContent(position.lineNumber)
   const lineBeforeCursor = lineContent.slice(0, position.column - 1)
   const schema = context?.getSchema ? context.getSchema() : { tables: [], relations: [] }
-  const tableNames = schema.tables.map((t) => t.name)
+  const tableNames = schema.tables.map(t => t.name)
 
   const items: monacoType.languages.CompletionItem[] = []
 
   // Contextual Foreign Key / REFERENCES Table suggestions
   const isAfterReferences = /REFERENCES\s+([a-zA-Z0-9_]*)$/i.test(lineBeforeCursor)
-  const isInsideReferenceColumns = /REFERENCES\s+([a-zA-Z0-9_]+)\s*\(([^)]*)$/i.test(lineBeforeCursor)
+  const isInsideReferenceColumns = /REFERENCES\s+([a-zA-Z0-9_]+)\s*\(([^)]*)$/i.test(
+    lineBeforeCursor
+  )
 
   if (isInsideReferenceColumns) {
     const match = lineBeforeCursor.match(/REFERENCES\s+([a-zA-Z0-9_]+)\s*\(([^)]*)$/i)
     const targetTableName = match ? match[1] : ''
     const targetTable = schema.tables.find(
-      (t) => t.name.toLowerCase() === targetTableName.toLowerCase()
+      t => t.name.toLowerCase() === targetTableName.toLowerCase()
     )
     if (targetTable) {
-      targetTable.columns.forEach((col) => {
+      targetTable.columns.forEach(col => {
         items.push({
           label: col.name,
           kind: monaco.languages.CompletionItemKind.Field,
@@ -66,7 +68,7 @@ export function getSqlCompletions(
   }
 
   if (isAfterReferences) {
-    tableNames.forEach((name) => {
+    tableNames.forEach(name => {
       items.push({
         label: name,
         kind: monaco.languages.CompletionItemKind.Class,
@@ -181,7 +183,7 @@ export function getSqlCompletions(
     'GROUP BY',
     'INDEX',
   ]
-  keywords.forEach((kw) => {
+  keywords.forEach(kw => {
     items.push({
       label: kw,
       kind: monaco.languages.CompletionItemKind.Keyword,
@@ -213,7 +215,7 @@ export function getSqlCompletions(
     'uuid',
     'bytea',
   ]
-  sqlTypes.forEach((t) => {
+  sqlTypes.forEach(t => {
     items.push({
       label: t,
       kind: monaco.languages.CompletionItemKind.TypeParameter,
@@ -225,7 +227,7 @@ export function getSqlCompletions(
   })
 
   // Live Schema Tables in SQL
-  tableNames.forEach((name) => {
+  tableNames.forEach(name => {
     items.push({
       label: name,
       kind: monaco.languages.CompletionItemKind.Class,
@@ -252,7 +254,7 @@ export function getDbmlCompletions(
   const lineContent = model.getLineContent(position.lineNumber)
   const lineBeforeCursor = lineContent.slice(0, position.column - 1)
   const schema = context?.getSchema ? context.getSchema() : { tables: [], relations: [] }
-  const tableNames = schema.tables.map((t) => t.name)
+  const tableNames = schema.tables.map(t => t.name)
 
   const items: monacoType.languages.CompletionItem[] = []
 
@@ -286,7 +288,7 @@ export function getDbmlCompletions(
       },
     ]
 
-    settings.forEach((s) => {
+    settings.forEach(s => {
       items.push({
         label: s.label,
         kind: monaco.languages.CompletionItemKind.Property,
@@ -305,13 +307,13 @@ export function getDbmlCompletions(
 
   // Check for DBML Ref relations: Ref: table.col > table.col
   const isAfterRef = /Ref:\s*([a-zA-Z0-9_.]*)$/i.test(lineBeforeCursor)
-  const isAfterOperator = /[><\-]\s*([a-zA-Z0-9_.]*)$/.test(lineBeforeCursor)
+  const isAfterOperator = /[><-]\s*([a-zA-Z0-9_.]*)$/.test(lineBeforeCursor)
 
   if (isAfterRef || isAfterOperator) {
-    tableNames.forEach((name) => {
-      const table = schema.tables.find((t) => t.name === name)
+    tableNames.forEach(name => {
+      const table = schema.tables.find(t => t.name === name)
       if (table && table.columns.length > 0) {
-        table.columns.forEach((col) => {
+        table.columns.forEach(col => {
           items.push({
             label: `${name}.${col.name}`,
             kind: monaco.languages.CompletionItemKind.Reference,
@@ -346,7 +348,7 @@ export function getDbmlCompletions(
         '  id int [pk, increment]',
         '  ${2:name} varchar',
         '  created_at timestamp [default: `now()`]',
-        '  Note: \'${3:Table description}\'',
+        "  Note: '${3:Table description}'",
         '}$0',
       ].join('\n'),
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -381,12 +383,9 @@ export function getDbmlCompletions(
       label: 'TableGroup',
       kind: monaco.languages.CompletionItemKind.Snippet,
       detail: 'DBML Table Grouping',
-      insertText: [
-        'TableGroup ${1:group_name} {',
-        '  ${2:table1}',
-        '  ${3:table2}',
-        '}$0',
-      ].join('\n'),
+      insertText: ['TableGroup ${1:group_name} {', '  ${2:table1}', '  ${3:table2}', '}$0'].join(
+        '\n'
+      ),
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
       range,
       sortText: '03_tablegroup',
@@ -397,8 +396,8 @@ export function getDbmlCompletions(
       detail: 'DBML Project Metadata',
       insertText: [
         'Project ${1:project_name} {',
-        '  database_type: \'PostgreSQL\'',
-        '  Note: \'${2:Project description}\'',
+        "  database_type: 'PostgreSQL'",
+        "  Note: '${2:Project description}'",
         '}$0',
       ].join('\n'),
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -412,7 +411,7 @@ export function getDbmlCompletions(
       insertText: [
         'indexes {',
         '  ${1:column_name} [unique]',
-        '  (${2:col1}, ${3:col2}) [name: \'${4:idx_composite}\']',
+        "  (${2:col1}, ${3:col2}) [name: '${4:idx_composite}']",
         '}$0',
       ].join('\n'),
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
@@ -443,7 +442,7 @@ export function getDbmlCompletions(
     'uuid',
     'blob',
   ]
-  dbmlTypes.forEach((t) => {
+  dbmlTypes.forEach(t => {
     items.push({
       label: t,
       kind: monaco.languages.CompletionItemKind.TypeParameter,
@@ -455,7 +454,7 @@ export function getDbmlCompletions(
   })
 
   // Table names
-  tableNames.forEach((name) => {
+  tableNames.forEach(name => {
     items.push({
       label: name,
       kind: monaco.languages.CompletionItemKind.Class,
@@ -482,7 +481,7 @@ export function getPrismaCompletions(
   const lineContent = model.getLineContent(position.lineNumber)
   const lineBeforeCursor = lineContent.slice(0, position.column - 1)
   const schema = context?.getSchema ? context.getSchema() : { tables: [], relations: [] }
-  const tableNames = schema.tables.map((t) => t.name)
+  const tableNames = schema.tables.map(t => t.name)
 
   const items: monacoType.languages.CompletionItem[] = []
 
@@ -527,8 +526,7 @@ export function getPrismaCompletions(
       {
         label: '@relation',
         detail: 'Foreign Key Relation',
-        insertText:
-          '@relation(fields: [${1:userId}], references: [${2:id}], onDelete: Cascade)$0',
+        insertText: '@relation(fields: [${1:userId}], references: [${2:id}], onDelete: Cascade)$0',
         isSnippet: true,
       },
       {
@@ -564,7 +562,7 @@ export function getPrismaCompletions(
       },
     ]
 
-    attributes.forEach((attr) => {
+    attributes.forEach(attr => {
       // If user has already typed @, strip the leading @ in insertText if word starts with @
       const alreadyHasAt = /@$/.test(lineBeforeCursor)
       const insert = alreadyHasAt && attr.label.startsWith('@') ? attr.label.slice(1) : attr.label
@@ -645,11 +643,7 @@ export function getPrismaCompletions(
       label: 'generator',
       kind: monaco.languages.CompletionItemKind.Snippet,
       detail: 'Prisma Client Generator',
-      insertText: [
-        'generator client {',
-        '  provider = "prisma-client-js"',
-        '}$0',
-      ].join('\n'),
+      insertText: ['generator client {', '  provider = "prisma-client-js"', '}$0'].join('\n'),
       insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
       range,
       sortText: '04_generator',
@@ -668,7 +662,7 @@ export function getPrismaCompletions(
     'Json',
     'Bytes',
   ]
-  prismaTypes.forEach((t) => {
+  prismaTypes.forEach(t => {
     items.push({
       label: t,
       kind: monaco.languages.CompletionItemKind.TypeParameter,
@@ -680,7 +674,7 @@ export function getPrismaCompletions(
   })
 
   // Suggest existing models as relation types
-  tableNames.forEach((name) => {
+  tableNames.forEach(name => {
     items.push({
       label: name,
       kind: monaco.languages.CompletionItemKind.Class,
@@ -705,7 +699,7 @@ export function getTypeScriptCompletions(
 ): monacoType.languages.CompletionItem[] {
   const range = getWordRange(model, position)
   const schema = context?.getSchema ? context.getSchema() : { tables: [], relations: [] }
-  const tableNames = schema.tables.map((t) => t.name)
+  const tableNames = schema.tables.map(t => t.name)
 
   const items: monacoType.languages.CompletionItem[] = []
 
@@ -823,7 +817,7 @@ export function getTypeScriptCompletions(
     },
   ]
 
-  drizzleColumns.forEach((col) => {
+  drizzleColumns.forEach(col => {
     items.push({
       label: col.label,
       kind: monaco.languages.CompletionItemKind.Function,
@@ -838,7 +832,7 @@ export function getTypeScriptCompletions(
   })
 
   // Table Names
-  tableNames.forEach((name) => {
+  tableNames.forEach(name => {
     items.push({
       label: name,
       kind: monaco.languages.CompletionItemKind.Class,
@@ -860,7 +854,7 @@ export function registerAllCompletions(
   getSchemaContext?: () => CompiledSchema
 ): monacoType.IDisposable[] {
   // Dispose existing providers if previously registered
-  disposables.forEach((d) => d.dispose())
+  disposables.forEach(d => d.dispose())
   disposables = []
 
   const ctx: CompletionProviderContext = {

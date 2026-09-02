@@ -1,5 +1,10 @@
 import { Project, SyntaxKind, Node } from 'ts-morph'
-import type { CompiledSchema, CompiledTable, CompiledColumn, CompiledRelation } from '~/utils/sql-compiler'
+import type {
+  CompiledSchema,
+  CompiledTable,
+  CompiledColumn,
+  CompiledRelation,
+} from '~/utils/sql-compiler'
 import { tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { tablesToPrisma } from '~/utils/prisma-compiler'
 
@@ -23,12 +28,9 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
 
   for (const sourceFile of sourceFiles) {
     const classes = sourceFile.getClasses()
-    console.log(`Parsing file: ${sourceFile.getFilePath()}, found ${classes.length} classes`)
-
     for (const classNode of classes) {
       const entityDecorator = classNode.getDecorator('Entity')
       if (!entityDecorator) {
-        console.log(`Class ${classNode.getName()} has no @Entity decorator`)
         continue
       }
 
@@ -47,10 +49,18 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
         const decorators = prop.getDecorators()
         if (decorators.length === 0) continue
 
-        const isOneToMany = decorators.some((d) => d.getName() === 'OneToMany')
-        const isManyToMany = decorators.some((d) => d.getName() === 'ManyToMany')
-        const isColumnLike = decorators.some((d) =>
-          ['Column', 'PrimaryGeneratedColumn', 'PrimaryColumn', 'CreateDateColumn', 'UpdateDateColumn', 'DeleteDateColumn', 'VersionColumn'].includes(d.getName())
+        const isOneToMany = decorators.some(d => d.getName() === 'OneToMany')
+        const isManyToMany = decorators.some(d => d.getName() === 'ManyToMany')
+        const isColumnLike = decorators.some(d =>
+          [
+            'Column',
+            'PrimaryGeneratedColumn',
+            'PrimaryColumn',
+            'CreateDateColumn',
+            'UpdateDateColumn',
+            'DeleteDateColumn',
+            'VersionColumn',
+          ].includes(d.getName())
         )
 
         let isPk = false
@@ -163,7 +173,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
             }
 
             if (targetClassName) {
-              const targetEntity = project.getSourceFiles()
+              const targetEntity = project
+                .getSourceFiles()
                 .flatMap(sf => sf.getClasses())
                 .find(c => c.getName() === targetClassName)
 
@@ -180,7 +191,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
               constraintsList.push(`REFERENCES ${targetTable}(id)`)
 
               const relationExists = relations.some(
-                r => r.fromTable === tableName && r.toTable === targetTable && r.fromColumn === colName
+                r =>
+                  r.fromTable === tableName && r.toTable === targetTable && r.fromColumn === colName
               )
               if (!relationExists) {
                 relations.push({
@@ -227,7 +239,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
             }
 
             if (targetClassName) {
-              const targetEntity = project.getSourceFiles()
+              const targetEntity = project
+                .getSourceFiles()
                 .flatMap(sf => sf.getClasses())
                 .find(c => c.getName() === targetClassName)
 
@@ -244,7 +257,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
               constraintsList.push(`REFERENCES ${targetTable}(id)`)
 
               const relationExists = relations.some(
-                r => r.fromTable === tableName && r.toTable === targetTable && r.fromColumn === colName
+                r =>
+                  r.fromTable === tableName && r.toTable === targetTable && r.fromColumn === colName
               )
               if (!relationExists) {
                 relations.push({
@@ -298,7 +312,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
             }
 
             if (targetClassName) {
-              const targetEntity = project.getSourceFiles()
+              const targetEntity = project
+                .getSourceFiles()
                 .flatMap(sf => sf.getClasses())
                 .find(c => c.getName() === targetClassName)
 
@@ -313,7 +328,8 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
 
               const fromCol = targetInverseProp || propName
               const relationExists = relations.some(
-                r => r.fromTable === targetTable && r.toTable === tableName && r.fromColumn === fromCol
+                r =>
+                  r.fromTable === targetTable && r.toTable === tableName && r.fromColumn === fromCol
               )
 
               if (!relationExists) {
@@ -347,7 +363,7 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
         }
 
         // Avoid adding duplicate column if already declared
-        const existingCol = columns.find((c) => c.name === colName)
+        const existingCol = columns.find(c => c.name === colName)
         if (existingCol) {
           if (isFk) {
             existingCol.isForeignKey = true
@@ -470,7 +486,9 @@ export function tablesToTypeORM(tables: CompiledTable[], relations?: CompiledRel
 
       // Check if this column is a foreign key with a relation
       const fkRelation = relList.find(
-        (r) => (r.fromTable || r.from.split('.')[0]) === table.name && (r.fromColumn || r.from.split('.')[1]) === col.name
+        r =>
+          (r.fromTable || r.from.split('.')[0]) === table.name &&
+          (r.fromColumn || r.from.split('.')[1]) === col.name
       )
 
       if (fkRelation) {
@@ -507,14 +525,16 @@ export function tablesToTypeORM(tables: CompiledTable[], relations?: CompiledRel
     }
 
     // Inverse relations (OneToMany)
-    const inverseRels = relList.filter((r) => (r.toTable || r.to.split('.')[0]) === table.name)
+    const inverseRels = relList.filter(r => (r.toTable || r.to.split('.')[0]) === table.name)
     for (const inv of inverseRels) {
       const invFromTable = inv.fromTable || inv.from.split('.')[0] || ''
       const invFromCol = inv.fromColumn || inv.from.split('.')[1] || ''
       const sourceClass = toPascalCase(invFromTable)
       const propName = invFromTable
       const relPropName = invFromCol.replace(/_id$/i, '') || invFromCol
-      lines.push(`  @OneToMany(() => ${sourceClass}, (${sourceClass.toLowerCase()}) => ${sourceClass.toLowerCase()}.${relPropName})`)
+      lines.push(
+        `  @OneToMany(() => ${sourceClass}, (${sourceClass.toLowerCase()}) => ${sourceClass.toLowerCase()}.${relPropName})`
+      )
       lines.push(`  ${propName}: ${sourceClass}[]`)
       lines.push('')
     }

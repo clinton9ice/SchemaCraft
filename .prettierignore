@@ -1,0 +1,10 @@
+node_modules
+.nuxt
+.output
+dist
+package-lock.json
+.git
+.agents
+.qodo
+.clinerules
+coverage

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEditorConsole } from "~/composables/use-editor-console";
+import { useEditorConsole } from '~/composables/use-editor-console'
 
 const {
   isEditorConsoleOpen,
@@ -8,21 +8,18 @@ const {
   closeConsole,
   clearLogs,
   jumpToEditorPosition,
-} = useEditorConsole();
+} = useEditorConsole()
 
-const { validationError } = usePostgresValidator();
-const { fileName, activeLanguage } = useSchemaStore();
-const { mobileView } = useSplitPane();
+const { validationError } = usePostgresValidator()
+const { fileName, activeLanguage } = useSchemaStore()
+const { mobileView } = useSplitPane()
 
 function handleJumpToError() {
-  if (!validationError.value) return;
-  if (mobileView.value === "canvas") {
-    mobileView.value = "editor";
+  if (!validationError.value) return
+  if (mobileView.value === 'canvas') {
+    mobileView.value = 'editor'
   }
-  jumpToEditorPosition(
-    validationError.value.lineNumber,
-    validationError.value.column,
-  );
+  jumpToEditorPosition(validationError.value.lineNumber, validationError.value.column)
 }
 </script>
 
@@ -60,20 +57,20 @@ function handleJumpToError() {
                 : 'bg-white/10 text-white/70'
             "
           >
-            {{ validationError ? "1" : "0" }}
+            {{ validationError ? '1' : '0' }}
           </span>
         </button>
 
         <!-- Output Tab -->
         <button
           type="button"
-          @click="activeConsoleTab = 'output'"
           class="flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold border-b-2 transition-colors cursor-pointer"
           :class="
             activeConsoleTab === 'output'
               ? 'border-blue-500 text-[var(--text-primary)]'
               : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
           "
+          @click="activeConsoleTab = 'output'"
         >
           <span>OUTPUT</span>
           <span
@@ -95,9 +92,9 @@ function handleJumpToError() {
         <button
           v-if="activeConsoleTab === 'output'"
           type="button"
-          @click="clearLogs"
           title="Clear Output Logs"
           class="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer transition-colors"
+          @click="clearLogs"
         >
           <svg
             class="w-3.5 h-3.5"
@@ -114,9 +111,9 @@ function handleJumpToError() {
         <!-- Close Console -->
         <button
           type="button"
-          @click="closeConsole"
           title="Close Console (Cmd+J / Ctrl+J)"
           class="p-1 rounded hover:bg-white/10 text-[var(--text-muted)] hover:text-white cursor-pointer transition-colors"
+          @click="closeConsole"
         >
           <svg
             class="w-3.5 h-3.5"
@@ -133,17 +130,15 @@ function handleJumpToError() {
     </div>
 
     <!-- Terminal Content Area -->
-    <div
-      class="flex-1 min-h-0 overflow-y-auto font-mono text-[11px] p-2 bg-[var(--header-bg)]"
-    >
+    <div class="flex-1 min-h-0 overflow-y-auto font-mono text-[11px] p-2 bg-[var(--header-bg)]">
       <!-- PROBLEMS TAB -->
       <div v-if="activeConsoleTab === 'problems'" class="space-y-2">
         <!-- Error Item Card -->
         <div
           v-if="validationError"
-          @click="handleJumpToError"
           class="flex items-start gap-3 p-3 rounded bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/30 text-rose-200 cursor-pointer transition-colors group shadow-sm"
           title="Click to jump directly to this error in the code editor"
+          @click="handleJumpToError"
         >
           <!-- Error Badge Icon -->
           <div class="shrink-0 mt-0.5">
@@ -164,28 +159,18 @@ function handleJumpToError() {
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="font-bold text-rose-300 text-xs">Syntax Error:</span>
-              <span class="text-white font-medium break-words">{{
-                validationError.message
-              }}</span>
+              <span class="text-white font-medium break-words">{{ validationError.message }}</span>
             </div>
 
-            <div
-              class="text-[10px] text-white/60 mt-1.5 flex items-center gap-2 flex-wrap"
-            >
-              <span class="text-[var(--text-primary)] font-semibold">{{
-                fileName
-              }}</span>
+            <div class="text-[10px] text-white/60 mt-1.5 flex items-center gap-2 flex-wrap">
+              <span class="text-[var(--text-primary)] font-semibold">{{ fileName }}</span>
               <span>•</span>
-              <span
-                class="bg-rose-500/25 text-rose-200 px-1.5 py-0.5 rounded font-mono font-bold"
-              >
+              <span class="bg-rose-500/25 text-rose-200 px-1.5 py-0.5 rounded font-mono font-bold">
                 Line {{ validationError.lineNumber }}, Column
                 {{ validationError.column }}
               </span>
               <span>•</span>
-              <span class="uppercase text-white/40 font-mono">{{
-                activeLanguage
-              }}</span>
+              <span class="uppercase text-white/40 font-mono">{{ activeLanguage }}</span>
               <span
                 class="text-blue-400 group-hover:underline font-sans font-semibold ml-auto flex items-center gap-1"
               >
@@ -221,30 +206,23 @@ function handleJumpToError() {
 
       <!-- OUTPUT TAB -->
       <div v-else class="space-y-1">
-        <div
-          v-if="consoleLogs.length === 0"
-          class="text-white/40 italic p-3 text-[11px]"
-        >
-          [Console]: Schema compiler initialized. Real-time compilation and AST
-          diagnostics will stream here.
+        <div v-if="consoleLogs.length === 0" class="text-white/40 italic p-3 text-[11px]">
+          [Console]: Schema compiler initialized. Real-time compilation and AST diagnostics will
+          stream here.
         </div>
         <div
           v-for="log in consoleLogs"
           :key="log.id"
           class="flex items-start gap-2.5 px-2 py-1 rounded text-[11px] font-mono leading-relaxed"
           :class="{
-            'text-rose-300 bg-rose-500/10 border border-rose-500/20':
-              log.type === 'error',
-            'text-amber-300 bg-amber-500/10 border border-amber-500/20':
-              log.type === 'warning',
+            'text-rose-300 bg-rose-500/10 border border-rose-500/20': log.type === 'error',
+            'text-amber-300 bg-amber-500/10 border border-amber-500/20': log.type === 'warning',
             'text-emerald-300 bg-emerald-500/10 border border-emerald-500/20':
               log.type === 'success',
             'text-white/80 hover:bg-white/5': log.type === 'info',
           }"
         >
-          <span class="text-white/35 text-[10px] shrink-0 mt-0.5">
-            [{{ log.timestamp }}]
-          </span>
+          <span class="text-white/35 text-[10px] shrink-0 mt-0.5"> [{{ log.timestamp }}] </span>
           <span class="break-all flex-1">{{ log.message }}</span>
         </div>
       </div>

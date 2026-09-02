@@ -34,39 +34,39 @@ describe('Drizzle ORM Compiler', () => {
 
     expect(result.tables.length).toBe(2)
 
-    const userTable = result.tables.find((t) => t.name === 'users')
+    const userTable = result.tables.find(t => t.name === 'users')
     expect(userTable).toBeDefined()
 
-    const idCol = userTable?.columns.find((c) => c.name === 'id')
+    const idCol = userTable?.columns.find(c => c.name === 'id')
     expect(idCol?.isPrimaryKey).toBe(true)
 
-    const usernameCol = userTable?.columns.find((c) => c.name === 'username')
+    const usernameCol = userTable?.columns.find(c => c.name === 'username')
     expect(usernameCol?.type).toBe('varchar(50)')
     expect(usernameCol?.isUnique).toBe(true)
     expect(usernameCol?.isNullable).toBe(false)
 
-    const bioCol = userTable?.columns.find((c) => c.name === 'bio')
+    const bioCol = userTable?.columns.find(c => c.name === 'bio')
     expect(bioCol?.type).toBe('text')
     expect(bioCol?.isNullable).toBe(true)
 
-    const activeCol = userTable?.columns.find((c) => c.name === 'is_active')
+    const activeCol = userTable?.columns.find(c => c.name === 'is_active')
     expect(activeCol?.defaultValue).toBe('true')
 
-    const createdCol = userTable?.columns.find((c) => c.name === 'created_at')
+    const createdCol = userTable?.columns.find(c => c.name === 'created_at')
     expect(createdCol?.defaultValue).toBe('now()')
   })
 
   it('should extract foreign key references and relations (compileDrizzle)', () => {
     const result = compileDrizzle(sampleDrizzle)
 
-    const postTable = result.tables.find((t) => t.name === 'posts')
+    const postTable = result.tables.find(t => t.name === 'posts')
     expect(postTable).toBeDefined()
 
-    const userFkCol = postTable?.columns.find((c) => c.name === 'user_id')
+    const userFkCol = postTable?.columns.find(c => c.name === 'user_id')
     expect(userFkCol?.isForeignKey).toBe(true)
     expect(userFkCol?.references).toEqual({ table: 'users', column: 'id' })
 
-    const rel = result.relations.find((r) => r.fromTable === 'posts' && r.toTable === 'users')
+    const rel = result.relations.find(r => r.fromTable === 'posts' && r.toTable === 'users')
     expect(rel).toBeDefined()
     expect(rel?.fromColumn).toBe('user_id')
     expect(rel?.toColumn).toBe('id')
@@ -77,15 +77,38 @@ describe('Drizzle ORM Compiler', () => {
       {
         name: 'categories',
         columns: [
-          { name: 'id', type: 'integer', isPrimaryKey: true, isNullable: false, isUnique: false, isForeignKey: false },
-          { name: 'name', type: 'varchar(60)', isPrimaryKey: false, isNullable: false, isUnique: true, isForeignKey: false },
-          { name: 'description', type: 'text', isPrimaryKey: false, isNullable: true, isUnique: false, isForeignKey: false },
+          {
+            name: 'id',
+            type: 'integer',
+            isPrimaryKey: true,
+            isNullable: false,
+            isUnique: false,
+            isForeignKey: false,
+          },
+          {
+            name: 'name',
+            type: 'varchar(60)',
+            isPrimaryKey: false,
+            isNullable: false,
+            isUnique: true,
+            isForeignKey: false,
+          },
+          {
+            name: 'description',
+            type: 'text',
+            isPrimaryKey: false,
+            isNullable: true,
+            isUnique: false,
+            isForeignKey: false,
+          },
         ],
       },
     ]
 
     const drizzleCode = tablesToDrizzle(tables)
-    expect(drizzleCode).toContain("import { pgTable, serial, varchar, text } from 'drizzle-orm/pg-core'")
+    expect(drizzleCode).toContain(
+      "import { pgTable, serial, varchar, text } from 'drizzle-orm/pg-core'"
+    )
     expect(drizzleCode).toContain("export const categories = pgTable('categories', {")
     expect(drizzleCode).toContain("id: serial('id').primaryKey()")
     expect(drizzleCode).toContain("name: varchar('name', { length: 60 }).notNull().unique()")

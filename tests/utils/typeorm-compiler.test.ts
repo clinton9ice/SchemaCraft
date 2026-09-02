@@ -1,14 +1,20 @@
 import { describe, it, expect } from 'vitest'
-import { compileTypeORM, tablesToTypeORM, typeormToSql, typeormToDbml, typeormToPrisma } from '../../utils/typeorm-compiler'
+import {
+  compileTypeORM,
+  tablesToTypeORM,
+  typeormToSql,
+  typeormToDbml,
+  typeormToPrisma,
+} from '../../utils/typeorm-compiler'
 import path from 'path'
 
 describe('TypeORM Compiler', () => {
   const entityFiles = [
-    path.resolve(__dirname, '../entities/User.ts'),
-    path.resolve(__dirname, '../entities/Post.ts'),
-    path.resolve(__dirname, '../entities/Category.ts'),
-    path.resolve(__dirname, '../entities/Comment.ts'),
-    path.resolve(__dirname, '../entities/Product.ts'),
+    path.resolve(__dirname, '../entities/user.ts'),
+    path.resolve(__dirname, '../entities/post.ts'),
+    path.resolve(__dirname, '../entities/category.ts'),
+    path.resolve(__dirname, '../entities/comment.ts'),
+    path.resolve(__dirname, '../entities/product.ts'),
   ]
 
   it('should extract entities and columns', () => {
@@ -27,7 +33,9 @@ describe('TypeORM Compiler', () => {
     const postTable = result.tables.find(t => t.name === 'posts')
     expect(postTable).toBeDefined()
 
-    const userRelation = result.relations.find(r => r.fromTable === 'posts' && r.toTable === 'users')
+    const userRelation = result.relations.find(
+      r => r.fromTable === 'posts' && r.toTable === 'users'
+    )
     expect(userRelation).toBeDefined()
     expect(userRelation?.fromColumn).toBe('user')
     expect(userRelation?.toColumn).toBe('id')
@@ -43,21 +51,23 @@ describe('TypeORM Compiler', () => {
 
   it('should handle OneToMany relationships', () => {
     const result = compileTypeORM(entityFiles)
-    
+
     const categoryTable = result.tables.find(t => t.name === 'categories')
     expect(categoryTable).toBeDefined()
-    
+
     // Check that the relationship is correctly identified
-    const relation = result.relations.find(r => r.fromTable === 'posts' && r.toTable === 'categories')
+    const relation = result.relations.find(
+      r => r.fromTable === 'posts' && r.toTable === 'categories'
+    )
     expect(relation).toBeDefined()
   })
 
   it('should handle OneToOne relationships with JoinColumn', () => {
     const result = compileTypeORM(entityFiles)
-    
+
     const commentTable = result.tables.find(t => t.name === 'comments')
     expect(commentTable).toBeDefined()
-    
+
     // Check that the relationship is correctly identified
     const relation = result.relations.find(r => r.fromTable === 'comments' && r.toTable === 'posts')
     expect(relation).toBeDefined()
@@ -65,10 +75,10 @@ describe('TypeORM Compiler', () => {
 
   it('should handle custom column types', () => {
     const result = compileTypeORM(entityFiles)
-    
+
     const productTable = result.tables.find(t => t.name === 'products')
     expect(productTable).toBeDefined()
-    
+
     // Check that decimal type is correctly handled
     const priceColumn = productTable?.columns.find(c => c.name === 'price')
     expect(priceColumn).toBeDefined()
@@ -77,9 +87,11 @@ describe('TypeORM Compiler', () => {
 
   it('should handle ManyToOne relationships with custom table names', () => {
     const result = compileTypeORM(entityFiles)
-    
+
     // Check that the relationship between Post and Category works correctly
-    const relation = result.relations.find(r => r.fromTable === 'products' && r.toTable === 'categories')
+    const relation = result.relations.find(
+      r => r.fromTable === 'products' && r.toTable === 'categories'
+    )
     expect(relation).toBeDefined()
     expect(relation?.fromColumn).toBe('category')
     expect(relation?.toColumn).toBe('id')
@@ -87,15 +99,15 @@ describe('TypeORM Compiler', () => {
 
   it('should handle complex column configurations', () => {
     const result = compileTypeORM(entityFiles)
-    
+
     const userTable = result.tables.find(t => t.name === 'users')
     expect(userTable).toBeDefined()
-    
+
     // Check that columns with specific configurations are handled correctly
     const emailColumn = userTable?.columns.find(c => c.name === 'email')
     expect(emailColumn).toBeDefined()
     expect(emailColumn?.isNullable).toBe(false)
-    
+
     const usernameColumn = userTable?.columns.find(c => c.name === 'username')
     expect(usernameColumn).toBeDefined()
     expect(usernameColumn?.isUnique).toBe(true)
@@ -106,23 +118,72 @@ describe('TypeORM Compiler', () => {
       {
         name: 'users',
         columns: [
-          { name: 'id', type: 'integer', isPrimaryKey: true, isNullable: false, isUnique: false, isForeignKey: false },
-          { name: 'username', type: 'varchar', isPrimaryKey: false, isNullable: false, isUnique: true, isForeignKey: false },
-          { name: 'email', type: 'text', isPrimaryKey: false, isNullable: true, isUnique: false, isForeignKey: false },
-        ]
+          {
+            name: 'id',
+            type: 'integer',
+            isPrimaryKey: true,
+            isNullable: false,
+            isUnique: false,
+            isForeignKey: false,
+          },
+          {
+            name: 'username',
+            type: 'varchar',
+            isPrimaryKey: false,
+            isNullable: false,
+            isUnique: true,
+            isForeignKey: false,
+          },
+          {
+            name: 'email',
+            type: 'text',
+            isPrimaryKey: false,
+            isNullable: true,
+            isUnique: false,
+            isForeignKey: false,
+          },
+        ],
       },
       {
         name: 'posts',
         columns: [
-          { name: 'id', type: 'integer', isPrimaryKey: true, isNullable: false, isUnique: false, isForeignKey: false },
-          { name: 'user_id', type: 'integer', isPrimaryKey: false, isNullable: false, isUnique: false, isForeignKey: true },
-          { name: 'title', type: 'varchar', isPrimaryKey: false, isNullable: false, isUnique: false, isForeignKey: false },
-        ]
-      }
+          {
+            name: 'id',
+            type: 'integer',
+            isPrimaryKey: true,
+            isNullable: false,
+            isUnique: false,
+            isForeignKey: false,
+          },
+          {
+            name: 'user_id',
+            type: 'integer',
+            isPrimaryKey: false,
+            isNullable: false,
+            isUnique: false,
+            isForeignKey: true,
+          },
+          {
+            name: 'title',
+            type: 'varchar',
+            isPrimaryKey: false,
+            isNullable: false,
+            isUnique: false,
+            isForeignKey: false,
+          },
+        ],
+      },
     ]
 
     const relations = [
-      { from: 'posts.user_id', to: 'users.id', fromTable: 'posts', fromColumn: 'user_id', toTable: 'users', toColumn: 'id' }
+      {
+        from: 'posts.user_id',
+        to: 'users.id',
+        fromTable: 'posts',
+        fromColumn: 'user_id',
+        toTable: 'users',
+        toColumn: 'id',
+      },
     ]
 
     const generatedCode = tablesToTypeORM(tables, relations)
@@ -130,7 +191,7 @@ describe('TypeORM Compiler', () => {
     expect(generatedCode).toContain('export class Users {')
     expect(generatedCode).toContain('@PrimaryGeneratedColumn()')
     expect(generatedCode).toContain('id: number')
-    expect(generatedCode).toContain("@Column({ unique: true, nullable: false })")
+    expect(generatedCode).toContain('@Column({ unique: true, nullable: false })')
     expect(generatedCode).toContain("@Entity('posts')")
     expect(generatedCode).toContain('export class Posts {')
     expect(generatedCode).toContain('@ManyToOne(() => Users)')

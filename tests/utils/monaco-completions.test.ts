@@ -124,12 +124,12 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 4 } as monacoType.Position
       const completions = getSqlCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === 'CREATE TABLE')).toBe(true)
-      expect(completions.some((c) => c.label === 'CREATE TABLE (UUID)')).toBe(true)
-      expect(completions.some((c) => c.label === 'FOREIGN KEY')).toBe(true)
-      expect(completions.some((c) => c.label === 'PRIMARY KEY')).toBe(true)
-      expect(completions.some((c) => c.label === 'varchar(255)')).toBe(true)
-      expect(completions.some((c) => c.label === 'uuid')).toBe(true)
+      expect(completions.some(c => c.label === 'CREATE TABLE')).toBe(true)
+      expect(completions.some(c => c.label === 'CREATE TABLE (UUID)')).toBe(true)
+      expect(completions.some(c => c.label === 'FOREIGN KEY')).toBe(true)
+      expect(completions.some(c => c.label === 'PRIMARY KEY')).toBe(true)
+      expect(completions.some(c => c.label === 'varchar(255)')).toBe(true)
+      expect(completions.some(c => c.label === 'uuid')).toBe(true)
     })
 
     it('suggests table names when typing REFERENCES', () => {
@@ -139,8 +139,8 @@ describe('Monaco Completions', () => {
         getSchema: () => mockSchema,
       })
 
-      expect(completions.some((c) => c.label === 'users')).toBe(true)
-      expect(completions.some((c) => c.label === 'posts')).toBe(true)
+      expect(completions.some(c => c.label === 'users')).toBe(true)
+      expect(completions.some(c => c.label === 'posts')).toBe(true)
     })
 
     it('suggests target table columns when typing REFERENCES table(', () => {
@@ -150,8 +150,8 @@ describe('Monaco Completions', () => {
         getSchema: () => mockSchema,
       })
 
-      expect(completions.some((c) => c.label === 'id')).toBe(true)
-      expect(completions.some((c) => c.label === 'email')).toBe(true)
+      expect(completions.some(c => c.label === 'id')).toBe(true)
+      expect(completions.some(c => c.label === 'email')).toBe(true)
     })
   })
 
@@ -161,10 +161,10 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 4 } as monacoType.Position
       const completions = getDbmlCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === 'Table')).toBe(true)
-      expect(completions.some((c) => c.label === 'Ref')).toBe(true)
-      expect(completions.some((c) => c.label === 'Enum')).toBe(true)
-      expect(completions.some((c) => c.label === 'int')).toBe(true)
+      expect(completions.some(c => c.label === 'Table')).toBe(true)
+      expect(completions.some(c => c.label === 'Ref')).toBe(true)
+      expect(completions.some(c => c.label === 'Enum')).toBe(true)
+      expect(completions.some(c => c.label === 'int')).toBe(true)
     })
 
     it('suggests field settings inside brackets [', () => {
@@ -172,10 +172,10 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 11 } as monacoType.Position
       const completions = getDbmlCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === 'pk')).toBe(true)
-      expect(completions.some((c) => c.label === 'increment')).toBe(true)
-      expect(completions.some((c) => c.label === 'not null')).toBe(true)
-      expect(completions.some((c) => c.label === 'unique')).toBe(true)
+      expect(completions.some(c => c.label === 'pk')).toBe(true)
+      expect(completions.some(c => c.label === 'increment')).toBe(true)
+      expect(completions.some(c => c.label === 'not null')).toBe(true)
+      expect(completions.some(c => c.label === 'unique')).toBe(true)
     })
 
     it('suggests table.column pairs after Ref: or relational operators', () => {
@@ -185,8 +185,8 @@ describe('Monaco Completions', () => {
         getSchema: () => mockSchema,
       })
 
-      expect(completions.some((c) => c.label === 'users.id')).toBe(true)
-      expect(completions.some((c) => c.label === 'posts.user_id')).toBe(true)
+      expect(completions.some(c => c.label === 'users.id')).toBe(true)
+      expect(completions.some(c => c.label === 'posts.user_id')).toBe(true)
     })
   })
 
@@ -196,11 +196,11 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 4 } as monacoType.Position
       const completions = getPrismaCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === 'model')).toBe(true)
-      expect(completions.some((c) => c.label === 'model (UUID)')).toBe(true)
-      expect(completions.some((c) => c.label === 'datasource')).toBe(true)
-      expect(completions.some((c) => c.label === 'String')).toBe(true)
-      expect(completions.some((c) => c.label === 'DateTime')).toBe(true)
+      expect(completions.some(c => c.label === 'model')).toBe(true)
+      expect(completions.some(c => c.label === 'model (UUID)')).toBe(true)
+      expect(completions.some(c => c.label === 'datasource')).toBe(true)
+      expect(completions.some(c => c.label === 'String')).toBe(true)
+      expect(completions.some(c => c.label === 'DateTime')).toBe(true)
     })
 
     it('suggests attributes when typing @', () => {
@@ -208,11 +208,11 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 11 } as monacoType.Position
       const completions = getPrismaCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === '@id')).toBe(true)
-      expect(completions.some((c) => c.label === '@unique')).toBe(true)
-      expect(completions.some((c) => c.label === '@default(autoincrement())')).toBe(true)
-      expect(completions.some((c) => c.label === '@relation')).toBe(true)
-      expect(completions.some((c) => c.label === '@updatedAt')).toBe(true)
+      expect(completions.some(c => c.label === '@id')).toBe(true)
+      expect(completions.some(c => c.label === '@unique')).toBe(true)
+      expect(completions.some(c => c.label === '@default(autoincrement())')).toBe(true)
+      expect(completions.some(c => c.label === '@relation')).toBe(true)
+      expect(completions.some(c => c.label === '@updatedAt')).toBe(true)
     })
 
     it('suggests existing models as relation types', () => {
@@ -222,8 +222,8 @@ describe('Monaco Completions', () => {
         getSchema: () => mockSchema,
       })
 
-      expect(completions.some((c) => c.label === 'users')).toBe(true)
-      expect(completions.some((c) => c.label === 'posts')).toBe(true)
+      expect(completions.some(c => c.label === 'users')).toBe(true)
+      expect(completions.some(c => c.label === 'posts')).toBe(true)
     })
   })
 
@@ -233,11 +233,11 @@ describe('Monaco Completions', () => {
       const pos = { lineNumber: 1, column: 1 } as monacoType.Position
       const completions = getTypeScriptCompletions(mockMonaco, model, pos)
 
-      expect(completions.some((c) => c.label === 'TypeORM @Entity')).toBe(true)
-      expect(completions.some((c) => c.label === 'TypeORM @ManyToOne')).toBe(true)
-      expect(completions.some((c) => c.label === 'Drizzle pgTable')).toBe(true)
-      expect(completions.some((c) => c.label === 'Drizzle relations')).toBe(true)
-      expect(completions.some((c) => c.label === "serial('id').primaryKey()")).toBe(true)
+      expect(completions.some(c => c.label === 'TypeORM @Entity')).toBe(true)
+      expect(completions.some(c => c.label === 'TypeORM @ManyToOne')).toBe(true)
+      expect(completions.some(c => c.label === 'Drizzle pgTable')).toBe(true)
+      expect(completions.some(c => c.label === 'Drizzle relations')).toBe(true)
+      expect(completions.some(c => c.label === "serial('id').primaryKey()")).toBe(true)
     })
   })
 

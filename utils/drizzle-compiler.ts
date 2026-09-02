@@ -1,5 +1,10 @@
-import { Project, SyntaxKind, Node, type CallExpression, type ObjectLiteralExpression } from 'ts-morph'
-import type { CompiledSchema, CompiledTable, CompiledColumn, CompiledRelation } from '~/utils/sql-compiler'
+import { Project, Node, type CallExpression } from 'ts-morph'
+import type {
+  CompiledSchema,
+  CompiledTable,
+  CompiledColumn,
+  CompiledRelation,
+} from '~/utils/sql-compiler'
 import { tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { tablesToPrisma } from '~/utils/prisma-compiler'
 import { tablesToTypeORM } from '~/utils/typeorm-compiler'
@@ -9,7 +14,10 @@ interface DrizzleMethodCall {
   args: Node[]
 }
 
-function unwrapCallChain(expr: Node): { baseCall: CallExpression | null; chain: DrizzleMethodCall[] } {
+function unwrapCallChain(expr: Node): {
+  baseCall: CallExpression | null
+  chain: DrizzleMethodCall[]
+} {
   const chain: DrizzleMethodCall[] = []
   let current: Node = expr
 
@@ -57,7 +65,12 @@ function mapDrizzleBaseTypeToSql(funcName: string, configArg?: Node): string {
       ) {
         const precInit = precProp.getInitializer()
         const scaleInit = scaleProp.getInitializer()
-        if (precInit && Node.isNumericLiteral(precInit) && scaleInit && Node.isNumericLiteral(scaleInit)) {
+        if (
+          precInit &&
+          Node.isNumericLiteral(precInit) &&
+          scaleInit &&
+          Node.isNumericLiteral(scaleInit)
+        ) {
           return `decimal(${precInit.getLiteralValue()}, ${scaleInit.getLiteralValue()})`
         }
       }
@@ -246,7 +259,7 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
                   constraintsList.push(`REFERENCES ${targetTableName}(${targetCol})`)
 
                   const relKey = `${tableName}.${dbColName}->${targetTableName}.${targetCol}`
-                  const exists = relations.some((r) => `${r.from}->${r.to}` === relKey)
+                  const exists = relations.some(r => `${r.from}->${r.to}` === relKey)
                   if (!exists) {
                     relations.push({
                       from: `${tableName}.${dbColName}`,
@@ -333,10 +346,7 @@ export function tablesToDrizzle(tables: CompiledTable[], relations?: CompiledRel
   }
 
   const importList = Array.from(usedTypes).join(', ')
-  const lines: string[] = [
-    `import { ${importList} } from 'drizzle-orm/pg-core'`,
-    '',
-  ]
+  const lines: string[] = [`import { ${importList} } from 'drizzle-orm/pg-core'`, '']
 
   for (const table of tables) {
     const varName = toCamelCase(table.name)
@@ -389,7 +399,9 @@ export function tablesToDrizzle(tables: CompiledTable[], relations?: CompiledRel
 
       // Chain references
       const fkRel = relList.find(
-        (r) => (r.fromTable || r.from.split('.')[0]) === table.name && (r.fromColumn || r.from.split('.')[1]) === col.name
+        r =>
+          (r.fromTable || r.from.split('.')[0]) === table.name &&
+          (r.fromColumn || r.from.split('.')[1]) === col.name
       )
       if (fkRel) {
         const targetTable = fkRel.toTable || fkRel.to.split('.')[0]

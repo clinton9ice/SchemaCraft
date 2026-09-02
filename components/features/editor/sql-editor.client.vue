@@ -1,16 +1,13 @@
 <script setup lang="ts">
-import * as monaco from "monaco-editor";
-import { THEME_LIST } from "~/composables/use-theme-engine";
-import { registerDbmlLanguage } from "~/utils/monaco-dbml";
-import { registerPrismaLanguage } from "~/utils/monaco-prisma";
-import { registerAllCompletions } from "~/utils/monaco-completions";
-import { useEditorConsole } from "~/composables/use-editor-console";
-import {
-  LANGUAGE_OPTIONS,
-  type SupportedLanguage,
-} from "~/composables/use-schema-store";
+import * as monaco from 'monaco-editor'
+import { THEME_LIST } from '~/composables/use-theme-engine'
+import { registerDbmlLanguage } from '~/utils/monaco-dbml'
+import { registerPrismaLanguage } from '~/utils/monaco-prisma'
+import { registerAllCompletions } from '~/utils/monaco-completions'
+import { useEditorConsole } from '~/composables/use-editor-console'
+import { LANGUAGE_OPTIONS, type SupportedLanguage } from '~/composables/use-schema-store'
 
-const schemaStore = useSchemaStore();
+const schemaStore = useSchemaStore()
 const {
   sqlCode,
   fileName,
@@ -25,112 +22,94 @@ const {
   setCursorPosition,
   convertSchemaToNewTab,
   parseSchema,
-} = schemaStore;
+} = schemaStore
 
-const {
-  isEditorConsoleOpen,
-  activeConsoleTab,
-  consoleLogs,
-  toggleConsole,
-  openConsole,
-  closeConsole,
-  addLog,
-  clearLogs,
-} = useEditorConsole();
+const { toggleConsole, openConsole, addLog } = useEditorConsole()
 
-const {
-  validationError,
-  isValidating,
-  validateSql,
-  debouncedValidate,
-  clearValidation,
-} = usePostgresValidator();
-const { saveSqlFile } = useFileSystem();
-const { currentTheme, activeThemeDef } = useThemeEngine();
+const { validationError, isValidating, validateSql, debouncedValidate } = usePostgresValidator()
+const { saveSqlFile } = useFileSystem()
+const { currentTheme, activeThemeDef } = useThemeEngine()
 
-const editorContainer = ref<HTMLElement | null>(null);
-const isLoading = ref(true);
-const isLanguageDropdownOpen = ref(false);
+const editorContainer = ref<HTMLElement | null>(null)
+const isLoading = ref(true)
+const isLanguageDropdownOpen = ref(false)
 
-let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
-let resizeObserver: ResizeObserver | null = null;
+let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null
+let resizeObserver: ResizeObserver | null = null
 
 const currentLanguageDef = computed(() => {
-  return (
-    LANGUAGE_OPTIONS.find((l) => l.id === activeLanguage.value) ||
-    LANGUAGE_OPTIONS[0]
-  );
-});
+  return LANGUAGE_OPTIONS.find(l => l.id === activeLanguage.value) || LANGUAGE_OPTIONS[0]
+})
 
-let parseTimeout: NodeJS.Timeout | null = null;
+let parseTimeout: NodeJS.Timeout | null = null
 function debouncedParse(code: string, lang: SupportedLanguage) {
-  if (parseTimeout) clearTimeout(parseTimeout);
+  if (parseTimeout) clearTimeout(parseTimeout)
   parseTimeout = setTimeout(() => {
-    parseSchema(code, lang);
-  }, 300);
+    parseSchema(code, lang)
+  }, 300)
 }
-if (typeof window !== "undefined" && !(window as any).MonacoEnvironment) {
-  (window as any).MonacoEnvironment = {
+if (typeof window !== 'undefined' && !window.MonacoEnvironment) {
+  window.MonacoEnvironment = {
     getWorker() {
       const blob = new Blob([`self.onmessage = function () {};`], {
-        type: "application/javascript",
-      });
-      return new Worker(URL.createObjectURL(blob));
+        type: 'application/javascript',
+      })
+      return new Worker(URL.createObjectURL(blob))
     },
-  };
+  }
 }
 
 // Register custom themes, DBML and Prisma languages, and IntelliSense completions in Monaco editor
 function registerMonacoAddons() {
-  THEME_LIST.forEach((theme) => {
+  THEME_LIST.forEach(theme => {
     if (theme.monacoThemeData) {
-      monaco.editor.defineTheme(theme.id, theme.monacoThemeData);
+      monaco.editor.defineTheme(theme.id, theme.monacoThemeData)
     }
-  });
-  registerDbmlLanguage(monaco);
-  registerPrismaLanguage(monaco);
+  })
+  registerDbmlLanguage(monaco)
+  registerPrismaLanguage(monaco)
   registerAllCompletions(monaco, () => ({
     tables: parsedTables.value,
     relations: parsedRelations.value,
-  }));
+  }))
 }
 
 function getMonacoLanguageId(lang: SupportedLanguage): string {
-  if (lang === "dbml") return "dbml";
-  if (lang === "prisma") return "prisma";
-  if (lang === "typeorm" || lang === "drizzle") return "typescript";
-  return "sql";
+  if (lang === 'dbml') return 'dbml'
+  if (lang === 'prisma') return 'prisma'
+  if (lang === 'typeorm' || lang === 'drizzle') return 'typescript'
+  return 'sql'
 }
 
 function updateMonacoLanguage() {
-  if (!editorInstance) return;
-  const model = editorInstance.getModel();
-  if (!model) return;
+  if (!editorInstance) return
+  const model = editorInstance.getModel()
+  if (!model) return
 
-  const targetLang = getMonacoLanguageId(activeLanguage.value);
-  monaco.editor.setModelLanguage(model, targetLang);
-  debouncedValidate(editorInstance.getValue(), monaco, model, 100, targetLang);
+  const targetLang = getMonacoLanguageId(activeLanguage.value)
+  monaco.editor.setModelLanguage(model, targetLang)
+  debouncedValidate(editorInstance.getValue(), monaco, model, 100, targetLang)
 }
 
 async function initMonaco() {
-  await nextTick();
+  await nextTick()
   if (!editorContainer.value) {
-    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise(resolve => requestAnimationFrame(resolve))
     if (!editorContainer.value) {
-      isLoading.value = false;
-      return;
+      isLoading.value = false
+      return
     }
   }
 
   try {
     if (editorInstance) {
-      editorInstance.dispose();
-      editorInstance = null;
+      editorInstance.dispose()
+      editorInstance = null
     }
 
-    registerMonacoAddons();
-    const monacoTheme = activeThemeDef.value.editorTheme || "vs-dark";
-    const initialMonacoLang = getMonacoLanguageId(activeLanguage.value);
+    registerMonacoAddons()
+    const monacoTheme = activeThemeDef.value.editorTheme || 'vs-dark'
+    const initialMonacoLang = getMonacoLanguageId(activeLanguage.value)
 
     // Configure Monaco Editor Options for VS Code-like IntelliSense
     editorInstance = monaco.editor.create(editorContainer.value, {
@@ -138,8 +117,7 @@ async function initMonaco() {
       language: initialMonacoLang,
       theme: monacoTheme,
       fontSize: 13,
-      fontFamily:
-        "'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace",
+      fontFamily: "'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace",
       fontLigatures: true,
       lineHeight: 20,
       automaticLayout: true,
@@ -152,12 +130,12 @@ async function initMonaco() {
       },
       scrollBeyondLastLine: false,
       roundedSelection: true,
-      renderLineHighlight: "all",
+      renderLineHighlight: 'all',
       bracketPairColorization: {
         enabled: true,
       },
-      cursorBlinking: "smooth",
-      cursorSmoothCaretAnimation: "on",
+      cursorBlinking: 'smooth',
+      cursorSmoothCaretAnimation: 'on',
       padding: {
         top: 12,
         bottom: 12,
@@ -169,10 +147,10 @@ async function initMonaco() {
         strings: true,
       },
       suggestOnTriggerCharacters: true,
-      acceptSuggestionOnEnter: "on",
-      tabCompletion: "on",
-      snippetSuggestions: "top",
-      wordBasedSuggestions: "currentDocument",
+      acceptSuggestionOnEnter: 'on',
+      tabCompletion: 'on',
+      snippetSuggestions: 'top',
+      wordBasedSuggestions: 'currentDocument',
       suggest: {
         showKeywords: true,
         showSnippets: true,
@@ -187,238 +165,212 @@ async function initMonaco() {
         enabled: true,
         delay: 200,
       },
-    });
+    })
 
     // Add Context Menu Action to Open Problems & Schema Diagnostics Console
     editorInstance.addAction({
-      id: "open-problems-console",
-      label: "View Problems & Schema Diagnostics (⌘J)",
-      contextMenuGroupId: "navigation",
+      id: 'open-problems-console',
+      label: 'View Problems & Schema Diagnostics (⌘J)',
+      contextMenuGroupId: 'navigation',
       contextMenuOrder: 1.5,
       keybindings: [
         monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
         monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyM,
       ],
       run: () => {
-        toggleConsole();
+        toggleConsole()
       },
-    });
+    })
 
     // Register Cmd+J / Ctrl+J command in Monaco Editor
-    editorInstance.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ,
-      () => {
-        toggleConsole();
-      }
-    );
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
+      toggleConsole()
+    })
 
-    const model = editorInstance.getModel();
+    const model = editorInstance.getModel()
     if (model) {
-      validateSql(sqlCode.value, monaco, model, activeLanguage.value);
+      validateSql(sqlCode.value, monaco, model, activeLanguage.value)
     }
 
     // Track Cursor Position
-    editorInstance.onDidChangeCursorPosition((e) => {
-      setCursorPosition(e.position.lineNumber, e.position.column);
-    });
+    editorInstance.onDidChangeCursorPosition(e => {
+      setCursorPosition(e.position.lineNumber, e.position.column)
+    })
 
     // Track Content Changes with Real-time 300ms Debounced Validation and Parsing
     editorInstance.onDidChangeModelContent(() => {
       if (editorInstance) {
-        const val = editorInstance.getValue();
+        const val = editorInstance.getValue()
         if (val !== sqlCode.value) {
-          setSqlCode(val);
+          setSqlCode(val)
         }
-        const currentModel = editorInstance.getModel();
+        const currentModel = editorInstance.getModel()
         if (currentModel) {
-          debouncedValidate(
-            val,
-            monaco,
-            currentModel,
-            300,
-            activeLanguage.value,
-          );
-          debouncedParse(val, activeLanguage.value);
+          debouncedValidate(val, monaco, currentModel, 300, activeLanguage.value)
+          debouncedParse(val, activeLanguage.value)
         }
       }
-    });
+    })
 
     // Keyboard shortcut: Cmd+S / Ctrl+S (triggers File System save)
-    editorInstance.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
-      () => {
-        saveSqlFile(false);
-      },
-    );
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      saveSqlFile(false)
+    })
 
     // Watch for tab switching: switch editor value and language cleanly
     watch(
       () => activeTabId.value,
       () => {
         if (editorInstance) {
-          const currentVal = editorInstance.getValue();
-          const targetVal = sqlCode.value;
+          const currentVal = editorInstance.getValue()
+          const targetVal = sqlCode.value
           if (currentVal !== targetVal) {
-            editorInstance.setValue(targetVal);
+            editorInstance.setValue(targetVal)
             const targetPos = activeTab.value?.cursorPosition || {
               line: 1,
               column: 1,
-            };
+            }
             editorInstance.setPosition({
               lineNumber: targetPos.line,
               column: targetPos.column,
-            });
+            })
           }
-          updateMonacoLanguage();
-          const currentModel = editorInstance.getModel();
+          updateMonacoLanguage()
+          const currentModel = editorInstance.getModel()
           if (currentModel) {
-            debouncedValidate(
-              targetVal,
-              monaco,
-              currentModel,
-              100,
-              activeLanguage.value,
-            );
+            debouncedValidate(targetVal, monaco, currentModel, 100, activeLanguage.value)
           }
-        }
-      },
-    );
-
-    // Watch for external code changes (e.g. file open, preset select, convert)
-    watch(sqlCode, (newVal) => {
-      if (editorInstance && editorInstance.getValue() !== newVal) {
-        const position = editorInstance.getPosition();
-        editorInstance.setValue(newVal);
-        if (position) {
-          editorInstance.setPosition(position);
-        }
-        const currentModel = editorInstance.getModel();
-        if (currentModel) {
-          debouncedValidate(
-            newVal,
-            monaco,
-            currentModel,
-            300,
-            activeLanguage.value,
-          );
         }
       }
-    });
+    )
+
+    // Watch for external code changes (e.g. file open, preset select, convert)
+    watch(sqlCode, newVal => {
+      if (editorInstance && editorInstance.getValue() !== newVal) {
+        const position = editorInstance.getPosition()
+        editorInstance.setValue(newVal)
+        if (position) {
+          editorInstance.setPosition(position)
+        }
+        const currentModel = editorInstance.getModel()
+        if (currentModel) {
+          debouncedValidate(newVal, monaco, currentModel, 300, activeLanguage.value)
+        }
+      }
+    })
 
     // Watch activeLanguage for Monaco syntax mode & validator
     watch(
       () => activeLanguage.value,
-      (newLang) => {
-        updateMonacoLanguage();
-      },
-    );
+      _newLang => {
+        updateMonacoLanguage()
+      }
+    )
 
     // Watch theme engine for dynamic Monaco theme changes
     watch(
       () => currentTheme.value,
       () => {
-        const targetTheme = activeThemeDef.value.editorTheme || "vs-dark";
-        monaco.editor.setTheme(targetTheme);
-      },
-    );
+        const targetTheme = activeThemeDef.value.editorTheme || 'vs-dark'
+        monaco.editor.setTheme(targetTheme)
+      }
+    )
 
     // Layout on resize
-    if (typeof ResizeObserver !== "undefined") {
+    if (typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
-        editorInstance?.layout();
-      });
-      resizeObserver.observe(editorContainer.value);
+        editorInstance?.layout()
+      })
+      resizeObserver.observe(editorContainer.value)
     }
   } catch (err) {
-    console.error("Error mounting Monaco editor:", err);
+    console.error('Error mounting Monaco editor:', err)
   } finally {
-    isLoading.value = false;
+    isLoading.value = false
   }
 }
 
 const availableConvertTargets = computed(() => {
-  return LANGUAGE_OPTIONS.filter((l) => l.id !== activeLanguage.value);
-});
+  return LANGUAGE_OPTIONS.filter(l => l.id !== activeLanguage.value)
+})
 
 // The 'Convert-to-Tab' Workflow: Translates schema and opens in a NEW workspace tab
 function handleConvertToNewTab(targetLang: SupportedLanguage) {
-  isLanguageDropdownOpen.value = false;
-  convertSchemaToNewTab(targetLang);
+  isLanguageDropdownOpen.value = false
+  convertSchemaToNewTab(targetLang)
 }
 
 function triggerNextConversion() {
   const rotation: Record<SupportedLanguage, SupportedLanguage> = {
-    sql: "drizzle",
-    drizzle: "typeorm",
-    typeorm: "prisma",
-    prisma: "dbml",
-    dbml: "sql",
-  };
-  const next = rotation[activeLanguage.value] || "sql";
-  handleConvertToNewTab(next);
+    sql: 'drizzle',
+    drizzle: 'typeorm',
+    typeorm: 'prisma',
+    prisma: 'dbml',
+    dbml: 'sql',
+  }
+  const next = rotation[activeLanguage.value] || 'sql'
+  handleConvertToNewTab(next)
 }
 
 function jumpToError(line?: number, col?: number) {
-  if (!editorInstance) return;
-  const targetLine = line || validationError.value?.lineNumber || 1;
-  const targetCol = col || validationError.value?.column || 1;
+  if (!editorInstance) return
+  const targetLine = line || validationError.value?.lineNumber || 1
+  const targetCol = col || validationError.value?.column || 1
   editorInstance.revealPositionInCenter({
     lineNumber: targetLine,
     column: targetCol,
-  });
-  editorInstance.setPosition({ lineNumber: targetLine, column: targetCol });
-  editorInstance.focus();
+  })
+  editorInstance.setPosition({ lineNumber: targetLine, column: targetCol })
+  editorInstance.focus()
 }
 
 watch(
   () => validationError.value,
-  (err) => {
+  err => {
     if (err) {
       addLog({
-        type: "error",
+        type: 'error',
         message: `[${activeLanguage.value.toUpperCase()}] Line ${err.lineNumber}, Col ${err.column}: ${err.message}`,
         lineNumber: err.lineNumber,
         column: err.column,
         source: fileName.value,
-      });
+      })
     }
   }
-);
+)
 
 // Click outside handler for dropdown
 function handleClickOutside(e: MouseEvent) {
-  const target = e.target as HTMLElement;
-  if (!target.closest(".language-selector-container")) {
-    isLanguageDropdownOpen.value = false;
+  const target = e.target as HTMLElement
+  if (!target.closest('.language-selector-container')) {
+    isLanguageDropdownOpen.value = false
   }
 }
 
 onMounted(() => {
   setEditorJumpHandler((line, col) => {
-    jumpToError(line, col);
-  });
-  initMonaco();
-  window.addEventListener("click", handleClickOutside);
-});
+    jumpToError(line, col)
+  })
+  initMonaco()
+  window.addEventListener('click', handleClickOutside)
+})
 
 onBeforeUnmount(() => {
-  setEditorJumpHandler(null);
-  window.removeEventListener("click", handleClickOutside);
+  setEditorJumpHandler(null)
+  window.removeEventListener('click', handleClickOutside)
   if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
+    resizeObserver.disconnect()
+    resizeObserver = null
   }
   if (editorInstance) {
-    editorInstance.dispose();
-    editorInstance = null;
+    editorInstance.dispose()
+    editorInstance = null
   }
-});
+})
 </script>
 
 <template>
-  <div
-    class="w-full h-full flex flex-col relative bg-[var(--app-bg)] overflow-hidden"
-  >
+  <div class="w-full h-full flex flex-col relative bg-[var(--app-bg)] overflow-hidden">
     <!-- Tab Bar for Multi-Schema Management -->
     <features-editor-tabs />
 
@@ -431,17 +383,15 @@ onBeforeUnmount(() => {
         <span class="text-neutral-600 hidden sm:inline">›</span>
         <span>schema</span>
         <span class="text-neutral-600">›</span>
-        <span class="text-[var(--text-primary)] font-medium truncate">{{
-          fileName
-        }}</span>
+        <span class="text-[var(--text-primary)] font-medium truncate">{{ fileName }}</span>
       </div>
 
       <!-- Diagnostic Status Indicator with real-time cross-language error feedback -->
       <button
         type="button"
-        @click="openConsole('problems')"
         class="flex items-center gap-2 text-[10px] shrink-0 px-2 py-0.5 rounded hover:bg-white/5 cursor-pointer transition-colors"
         title="Toggle Problems & Error Console (Ctrl+Shift+M)"
+        @click="openConsole('problems')"
       >
         <span v-if="isValidating" class="text-blue-400 flex items-center gap-1">
           <svg
@@ -459,12 +409,10 @@ onBeforeUnmount(() => {
           v-else-if="validationError"
           class="text-rose-400 font-sans flex items-center gap-1 truncate max-w-[240px]"
         >
-          <span
-            class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0"
-          />
+          <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0" />
           <span class="truncate font-mono"
-            >Ln {{ validationError.lineNumber }}, Col
-            {{ validationError.column }}: {{ validationError.message }}</span
+            >Ln {{ validationError.lineNumber }}, Col {{ validationError.column }}:
+            {{ validationError.message }}</span
           >
         </span>
         <span
@@ -511,17 +459,12 @@ onBeforeUnmount(() => {
     >
       <!-- Left: Line / Column Info & Table Count & Problems Console Trigger -->
       <div class="flex items-center gap-3">
-        <span
-          >Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}</span
-        >
+        <span>Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}</span>
         <span class="text-[var(--node-border)]">|</span>
-        <span class="text-[var(--text-muted)]"
-          >{{ detectedTablesCount }} tables</span
-        >
+        <span class="text-[var(--text-muted)]">{{ detectedTablesCount }} tables</span>
         <span class="text-[var(--node-border)]">|</span>
         <button
           type="button"
-          @click="toggleConsole()"
           class="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors cursor-pointer"
           :class="
             validationError
@@ -529,6 +472,7 @@ onBeforeUnmount(() => {
               : 'text-[var(--text-muted)] hover:text-white'
           "
           title="Toggle Problems & Console Panel (Ctrl+Shift+M)"
+          @click="toggleConsole()"
         >
           <svg
             class="w-3 h-3"
@@ -569,9 +513,7 @@ onBeforeUnmount(() => {
             @click.stop="isLanguageDropdownOpen = !isLanguageDropdownOpen"
           >
             <span>{{ currentLanguageDef.icon }}</span>
-            <span class="font-medium font-sans">{{
-              currentLanguageDef.shortLabel
-            }}</span>
+            <span class="font-medium font-sans">{{ currentLanguageDef.shortLabel }}</span>
             <svg
               class="w-3 h-3 text-[var(--text-muted)] transition-transform"
               :class="{ 'rotate-180': isLanguageDropdownOpen }"
@@ -597,9 +539,7 @@ onBeforeUnmount(() => {
                 <span>⚡</span>
                 <span>Convert Schema To</span>
               </span>
-              <span class="text-[9px] font-normal lowercase opacity-75"
-                >new tab</span
-              >
+              <span class="text-[9px] font-normal lowercase opacity-75">new tab</span>
             </div>
 
             <div class="space-y-1 mt-1">
@@ -617,8 +557,7 @@ onBeforeUnmount(() => {
                       class="font-medium text-xs text-[var(--text-primary)] group-hover:text-blue-300 flex items-center gap-1.5"
                     >
                       {{ lang.label }}
-                      <span
-                        class="text-[9px] font-mono text-neutral-400 group-hover:text-blue-400"
+                      <span class="text-[9px] font-mono text-neutral-400 group-hover:text-blue-400"
                         >({{ lang.ext }})</span
                       >
                     </div>
@@ -644,9 +583,7 @@ onBeforeUnmount(() => {
       <div
         class="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
       />
-      <span class="text-xs font-mono"
-        >Initializing Monaco Editor & Language Engine...</span
-      >
+      <span class="text-xs font-mono">Initializing Monaco Editor & Language Engine...</span>
     </div>
   </div>
 </template>

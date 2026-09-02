@@ -1,29 +1,29 @@
 <script setup lang="ts">
-import { normalizeClass } from "vue";
+import { normalizeClass } from 'vue'
 
 defineOptions({
   inheritAttrs: false,
-});
+})
 
 export type IconLibProps = {
-  icon: string;
-  dir?: string;
-  stroke?: string;
-  rectStroke?: string;
-  circleStroke?: string;
-  fill?: string;
-  height?: number | string;
-  width?: number | string;
-  pathFill?: string;
-  rectFill?: string;
-  pathClass?: string | string[] | Record<string, boolean>;
-  rectClass?: string | string[] | Record<string, boolean>;
-  svgClass?: string | string[] | Record<string, boolean>;
-  circleFill?: string;
-  circleClass?: string | string[] | Record<string, boolean>;
-};
+  icon: string
+  dir?: string
+  stroke?: string
+  rectStroke?: string
+  circleStroke?: string
+  fill?: string
+  height?: number | string
+  width?: number | string
+  pathFill?: string
+  rectFill?: string
+  pathClass?: string | string[] | Record<string, boolean>
+  rectClass?: string | string[] | Record<string, boolean>
+  svgClass?: string | string[] | Record<string, boolean>
+  circleFill?: string
+  circleClass?: string | string[] | Record<string, boolean>
+}
 
-const props = defineProps<IconLibProps>();
+const props = defineProps<IconLibProps>()
 
 /**
  * Load all SVGs at build time.
@@ -34,21 +34,21 @@ const props = defineProps<IconLibProps>();
  *
  * No browser APIs are required.
  */
-const iconModules = import.meta.glob("~/assets/icons/**/*.svg", {
+const iconModules = import.meta.glob('~/assets/icons/**/*.svg', {
   eager: true,
-  query: "?raw",
-  import: "default",
-}) as Record<string, string>;
+  query: '?raw',
+  import: 'default',
+}) as Record<string, string>
 
-const iconRegistry = Object.create(null) as Record<string, string>;
+const iconRegistry = Object.create(null) as Record<string, string>
 
 for (const [path, svg] of Object.entries(iconModules)) {
   const normalizedPath = path
-    .replace(/\\/g, "/")
-    .replace(/^.*\/app\/assets\/icons\//, "")
-    .replace(/\.svg$/i, "");
+    .replace(/\\/g, '/')
+    .replace(/^.*\/app\/assets\/icons\//, '')
+    .replace(/\.svg$/i, '')
 
-  iconRegistry[normalizedPath] = svg;
+  iconRegistry[normalizedPath] = svg
 }
 
 /**
@@ -70,7 +70,7 @@ const fallbackSvg = `
   <line x1="12" y1="8" x2="12" y2="12"/>
   <line x1="12" y1="16" x2="12.01" y2="16"/>
 </svg>
-`;
+`
 
 /**
  * Convert Vue class values into an actual class string.
@@ -81,16 +81,14 @@ const fallbackSvg = `
  * string[]
  * Record<string, boolean>
  */
-function resolveClass(
-  value: IconLibProps[keyof IconLibProps],
-): string | undefined {
+function resolveClass(value: IconLibProps[keyof IconLibProps]): string | undefined {
   if (!value) {
-    return undefined;
+    return undefined
   }
 
-  const result = normalizeClass(value as any);
+  const result = normalizeClass(value as Parameters<typeof normalizeClass>[0])
 
-  return result || undefined;
+  return result || undefined
 }
 
 /**
@@ -98,10 +96,10 @@ function resolveClass(
  */
 function escapeAttribute(value: string | number): string {
   return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }
 
 /**
@@ -112,18 +110,18 @@ function escapeAttribute(value: string | number): string {
  * exactly as "~/app/assets/..." at runtime.
  */
 function getIconSource(): string | undefined {
-  const dir = props.dir ? props.dir.replace(/^\/+|\/+$/g, "") : "";
+  const dir = props.dir ? props.dir.replace(/^\/+|\/+$/g, '') : ''
 
-  const icon = props.icon.replace(/^\/+|\/+$/g, "");
+  const icon = props.icon.replace(/^\/+|\/+$/g, '')
 
-  const lookupKey = dir ? `${dir}/${icon}` : icon;
-  const registryKeys = Object.keys(iconRegistry);
-  const findKey = registryKeys.find((key) => key.includes(lookupKey));
+  const lookupKey = dir ? `${dir}/${icon}` : icon
+  const registryKeys = Object.keys(iconRegistry)
+  const findKey = registryKeys.find(key => key.includes(lookupKey))
 
   if (findKey) {
-    return iconRegistry[findKey];
+    return iconRegistry[findKey]
   }
-  return "";
+  return ''
 }
 
 /**
@@ -132,24 +130,21 @@ function getIconSource(): string | undefined {
 function setSvgAttribute(
   svg: string,
   attribute: string,
-  value: string | number | undefined,
+  value: string | number | undefined
 ): string {
-  if (value === undefined || value === null || value === "") {
-    return svg;
+  if (value === undefined || value === null || value === '') {
+    return svg
   }
 
-  const escapedValue = escapeAttribute(value);
+  const escapedValue = escapeAttribute(value)
 
-  const attributeRegex = new RegExp(`\\s${attribute}="[^"]*"`, "i");
+  const attributeRegex = new RegExp(`\\s${attribute}="[^"]*"`, 'i')
 
   if (attributeRegex.test(svg)) {
-    return svg.replace(attributeRegex, ` ${attribute}="${escapedValue}"`);
+    return svg.replace(attributeRegex, ` ${attribute}="${escapedValue}"`)
   }
 
-  return svg.replace(
-    /<svg\b([^>]*)>/i,
-    `<svg$1 ${attribute}="${escapedValue}">`,
-  );
+  return svg.replace(/<svg\b([^>]*)>/i, `<svg$1 ${attribute}="${escapedValue}">`)
 }
 
 /**
@@ -157,28 +152,28 @@ function setSvgAttribute(
  */
 function setElementClass(
   svg: string,
-  element: "path" | "rect" | "circle",
-  className: string | undefined,
+  element: 'path' | 'rect' | 'circle',
+  className: string | undefined
 ): string {
   if (!className) {
-    return svg;
+    return svg
   }
 
-  const escapedClass = escapeAttribute(className);
+  const escapedClass = escapeAttribute(className)
 
-  const elementRegex = new RegExp(`<${element}\\b([^>]*)>`, "gi");
+  const elementRegex = new RegExp(`<${element}\\b([^>]*)>`, 'gi')
 
   return svg.replace(elementRegex, (_match, attributes: string) => {
-    const classRegex = /\sclass="[^"]*"/i;
+    const classRegex = /\sclass="[^"]*"/i
 
     if (classRegex.test(attributes)) {
-      attributes = attributes.replace(classRegex, ` class="${escapedClass}"`);
+      attributes = attributes.replace(classRegex, ` class="${escapedClass}"`)
     } else {
-      attributes += ` class="${escapedClass}"`;
+      attributes += ` class="${escapedClass}"`
     }
 
-    return `<${element}${attributes}>`;
-  });
+    return `<${element}${attributes}>`
+  })
 }
 
 /**
@@ -186,32 +181,29 @@ function setElementClass(
  */
 function setElementAttribute(
   svg: string,
-  element: "path" | "rect" | "circle",
+  element: 'path' | 'rect' | 'circle',
   attribute: string,
-  value: string | undefined,
+  value: string | undefined
 ): string {
   if (!value) {
-    return svg;
+    return svg
   }
 
-  const escapedValue = escapeAttribute(value);
+  const escapedValue = escapeAttribute(value)
 
-  const elementRegex = new RegExp(`<${element}\\b([^>]*)>`, "gi");
+  const elementRegex = new RegExp(`<${element}\\b([^>]*)>`, 'gi')
 
   return svg.replace(elementRegex, (_match, attributes: string) => {
-    const attributeRegex = new RegExp(`\\s${attribute}="[^"]*"`, "i");
+    const attributeRegex = new RegExp(`\\s${attribute}="[^"]*"`, 'i')
 
     if (attributeRegex.test(attributes)) {
-      attributes = attributes.replace(
-        attributeRegex,
-        ` ${attribute}="${escapedValue}"`,
-      );
+      attributes = attributes.replace(attributeRegex, ` ${attribute}="${escapedValue}"`)
     } else {
-      attributes += ` ${attribute}="${escapedValue}"`;
+      attributes += ` ${attribute}="${escapedValue}"`
     }
 
-    return `<${element}${attributes}>`;
-  });
+    return `<${element}${attributes}>`
+  })
 }
 
 /**
@@ -226,92 +218,92 @@ function setElementAttribute(
  * - XMLSerializer
  */
 function buildSvg(source: string): string {
-  let svg = source.trim();
+  let svg = source.trim()
 
   /**
    * Make sure we actually received an SVG.
    */
   if (!/^<svg[\s>]/i.test(svg)) {
-    return fallbackSvg;
+    return fallbackSvg
   }
 
   /**
    * Root SVG attributes.
    */
-  svg = setSvgAttribute(svg, "width", props.width);
-  svg = setSvgAttribute(svg, "height", props.height);
-  svg = setSvgAttribute(svg, "fill", props.fill);
+  svg = setSvgAttribute(svg, 'width', props.width)
+  svg = setSvgAttribute(svg, 'height', props.height)
+  svg = setSvgAttribute(svg, 'fill', props.fill)
 
-  const svgClass = resolveClass(props.svgClass);
+  const svgClass = resolveClass(props.svgClass)
 
   if (svgClass) {
-    svg = setSvgAttribute(svg, "class", svgClass);
+    svg = setSvgAttribute(svg, 'class', svgClass)
   }
 
   /**
    * PATH
    */
-  const pathClass = resolveClass(props.pathClass);
+  const pathClass = resolveClass(props.pathClass)
 
   if (pathClass) {
-    svg = setElementClass(svg, "path", pathClass);
+    svg = setElementClass(svg, 'path', pathClass)
   }
 
   if (props.stroke) {
-    svg = setElementAttribute(svg, "path", "stroke", props.stroke);
+    svg = setElementAttribute(svg, 'path', 'stroke', props.stroke)
 
-    svg = setElementAttribute(svg, "path", "fill", "none");
+    svg = setElementAttribute(svg, 'path', 'fill', 'none')
   }
 
   if (props.pathFill) {
-    svg = setElementAttribute(svg, "path", "fill", props.pathFill);
+    svg = setElementAttribute(svg, 'path', 'fill', props.pathFill)
 
-    svg = setElementAttribute(svg, "path", "stroke", "none");
+    svg = setElementAttribute(svg, 'path', 'stroke', 'none')
   }
 
   /**
    * RECT
    */
-  const rectClass = resolveClass(props.rectClass);
+  const rectClass = resolveClass(props.rectClass)
 
   if (rectClass) {
-    svg = setElementClass(svg, "rect", rectClass);
+    svg = setElementClass(svg, 'rect', rectClass)
   }
 
   if (props.rectStroke) {
-    svg = setElementAttribute(svg, "rect", "stroke", props.rectStroke);
+    svg = setElementAttribute(svg, 'rect', 'stroke', props.rectStroke)
 
-    svg = setElementAttribute(svg, "rect", "fill", "none");
+    svg = setElementAttribute(svg, 'rect', 'fill', 'none')
   }
 
   if (props.rectFill) {
-    svg = setElementAttribute(svg, "rect", "fill", props.rectFill);
+    svg = setElementAttribute(svg, 'rect', 'fill', props.rectFill)
 
-    svg = setElementAttribute(svg, "rect", "stroke", "none");
+    svg = setElementAttribute(svg, 'rect', 'stroke', 'none')
   }
 
   /**
    * CIRCLE
    */
-  const circleClass = resolveClass(props.circleClass);
+  const circleClass = resolveClass(props.circleClass)
 
   if (circleClass) {
-    svg = setElementClass(svg, "circle", circleClass);
+    svg = setElementClass(svg, 'circle', circleClass)
   }
 
   if (props.circleStroke) {
-    svg = setElementAttribute(svg, "circle", "stroke", props.circleStroke);
+    svg = setElementAttribute(svg, 'circle', 'stroke', props.circleStroke)
 
-    svg = setElementAttribute(svg, "circle", "fill", "none");
+    svg = setElementAttribute(svg, 'circle', 'fill', 'none')
   }
 
   if (props.circleFill) {
-    svg = setElementAttribute(svg, "circle", "fill", props.circleFill);
+    svg = setElementAttribute(svg, 'circle', 'fill', props.circleFill)
 
-    svg = setElementAttribute(svg, "circle", "stroke", "none");
+    svg = setElementAttribute(svg, 'circle', 'stroke', 'none')
   }
 
-  return svg;
+  return svg
 }
 
 /**
@@ -321,8 +313,8 @@ function buildSvg(source: string): string {
  * depends on reactive props.
  */
 const sourceSvg = computed(() => {
-  return getIconSource() ?? fallbackSvg;
-});
+  return getIconSource() ?? fallbackSvg
+})
 
 /**
  * Final SVG.
@@ -331,12 +323,12 @@ const sourceSvg = computed(() => {
  * recalculates whenever ANY relevant prop changes.
  */
 const svgString = computed(() => {
-  return buildSvg(sourceSvg.value);
-});
+  return buildSvg(sourceSvg.value)
+})
 </script>
 
 <template>
-  <ClientOnly>
+  <client-only>
     <span v-bind="$attrs" v-html="svgString" />
-  </ClientOnly>
+  </client-only>
 </template>

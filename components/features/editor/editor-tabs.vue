@@ -60,24 +60,24 @@ function cancelRenaming() {
             tab.language === 'prisma'
               ? 'bg-emerald-500/20 text-emerald-300'
               : tab.language === 'dbml'
-              ? 'bg-amber-500/20 text-amber-300'
-              : tab.language === 'drizzle'
-              ? 'bg-cyan-500/20 text-cyan-300'
-              : tab.language === 'typeorm'
-              ? 'bg-purple-500/20 text-purple-300'
-              : 'bg-blue-500/20 text-blue-300',
+                ? 'bg-amber-500/20 text-amber-300'
+                : tab.language === 'drizzle'
+                  ? 'bg-cyan-500/20 text-cyan-300'
+                  : tab.language === 'typeorm'
+                    ? 'bg-purple-500/20 text-purple-300'
+                    : 'bg-blue-500/20 text-blue-300',
           ]"
         >
           {{
             tab.language === 'prisma'
               ? 'PRISMA'
               : tab.language === 'dbml'
-              ? 'DBML'
-              : tab.language === 'drizzle'
-              ? 'DRIZZLE'
-              : tab.language === 'typeorm'
-              ? 'TYPEORM'
-              : 'SQL'
+                ? 'DBML'
+                : tab.language === 'drizzle'
+                  ? 'DRIZZLE'
+                  : tab.language === 'typeorm'
+                    ? 'TYPEORM'
+                    : 'SQL'
           }}
         </span>
 
@@ -123,7 +123,13 @@ function cancelRenaming() {
             title="Close tab"
             @click.stop="closeTab(tab.id)"
           >
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <svg
+              class="w-3 h-3"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+            >
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -134,18 +140,24 @@ function cancelRenaming() {
 
     <!-- Add New Tab Button with Language Selection Dropdown -->
     <div class="px-2 flex items-center gap-1 shrink-0 relative new-tab-container">
-      <UTooltip text="Add New Tab (SQL / DBML / Prisma)" :popper="{ placement: 'bottom' }">
+      <u-tooltip text="Add New Tab (SQL / DBML / Prisma)" :popper="{ placement: 'bottom' }">
         <button
           type="button"
           class="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           @click="addNewTab()"
         >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            class="w-3.5 h-3.5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
         </button>
-      </UTooltip>
+      </u-tooltip>
     </div>
   </div>
 </template>

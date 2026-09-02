@@ -57,7 +57,7 @@ const variantClasses = computed(() => {
       'inline-flex items-center justify-center gap-1.5 transition-colors duration-150 rounded text-xs font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer',
       sizeClasses,
       variantClasses,
-      customClass
+      customClass,
     ]"
     :title="title"
     @click="$emit('click', $event)"

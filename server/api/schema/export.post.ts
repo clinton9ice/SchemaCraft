@@ -1,9 +1,11 @@
 function toPascalCase(name: string): string {
   if (!name) return ''
-  return name.charAt(0).toUpperCase() + name.slice(1).replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+  return (
+    name.charAt(0).toUpperCase() + name.slice(1).replace(/_([a-z])/g, (_, l) => l.toUpperCase())
+  )
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async event => {
   const body = await readBody<{
     format: 'typescript' | 'prisma' | 'dbml' | 'json'
     tables: Array<{
@@ -34,7 +36,14 @@ export default defineEventHandler(async (event) => {
   if (format === 'typescript') {
     const mapPgToTs = (pgType: string): string => {
       const t = pgType.toLowerCase()
-      if (t.includes('int') || t.includes('serial') || t.includes('numeric') || t.includes('decimal') || t.includes('float') || t.includes('double')) {
+      if (
+        t.includes('int') ||
+        t.includes('serial') ||
+        t.includes('numeric') ||
+        t.includes('decimal') ||
+        t.includes('float') ||
+        t.includes('double')
+      ) {
         return 'number'
       }
       if (t.includes('bool')) return 'boolean'
@@ -44,10 +53,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const tsOutput = tables
-      .map((table) => {
+      .map(table => {
         const typeName = toPascalCase(table.name)
         const fields = table.columns
-          .map((col) => {
+          .map(col => {
             const optional = col.isNullable ? '?' : ''
             return `  ${col.name}${optional}: ${mapPgToTs(col.type)}`
           })
@@ -68,7 +77,13 @@ export default defineEventHandler(async (event) => {
     const mapPgToPrisma = (pgType: string): string => {
       const t = pgType.toLowerCase()
       if (t.includes('int') || t.includes('serial')) return 'Int'
-      if (t.includes('numeric') || t.includes('decimal') || t.includes('float') || t.includes('double')) return 'Float'
+      if (
+        t.includes('numeric') ||
+        t.includes('decimal') ||
+        t.includes('float') ||
+        t.includes('double')
+      )
+        return 'Float'
       if (t.includes('bool')) return 'Boolean'
       if (t.includes('json')) return 'Json'
       if (t.includes('time') || t.includes('date')) return 'DateTime'
@@ -77,10 +92,10 @@ export default defineEventHandler(async (event) => {
     }
 
     const prismaModels = tables
-      .map((table) => {
+      .map(table => {
         const modelName = toPascalCase(table.name)
         const fields = table.columns
-          .map((col) => {
+          .map(col => {
             let fieldType = mapPgToPrisma(col.type)
             const attributes: string[] = []
             if (col.isPrimaryKey) attributes.push('@id')
@@ -105,9 +120,9 @@ export default defineEventHandler(async (event) => {
 
   if (format === 'dbml') {
     const dbmlOutput = tables
-      .map((table) => {
+      .map(table => {
         const cols = table.columns
-          .map((col) => {
+          .map(col => {
             const notes: string[] = []
             if (col.isPrimaryKey) notes.push('pk')
             if (col.isUnique && !col.isPrimaryKey) notes.push('unique')

@@ -28,7 +28,7 @@ export interface CompiledTable {
 
 export interface CompiledRelation {
   from: string // e.g. "posts.user_id"
-  to: string   // e.g. "users.id"
+  to: string // e.g. "users.id"
   fromTable?: string
   fromColumn?: string
   toTable?: string
@@ -40,16 +40,28 @@ export interface CompiledSchema {
   relations: CompiledRelation[]
 }
 
+interface PgTypeNameObj {
+  names?: Array<{ String?: { sval?: string }; sval?: string }>
+  typmods?: Array<{
+    A_Const?: {
+      ival?: { ival?: number }
+      fval?: { fval?: number }
+      sval?: { sval?: string }
+    }
+  }>
+  arrayBounds?: unknown[]
+}
+
 /**
  * Normalizes PostgreSQL internal type representations into human-readable SQL types
  */
-function normalizeTypeName(typeNameObj: any): string {
+function normalizeTypeName(typeNameObj?: PgTypeNameObj | null): string {
   if (!typeNameObj) return 'text'
 
   const names = typeNameObj.names || []
   let rawName =
     names
-      .map((n: any) => n?.String?.sval || n?.sval || '')
+      .map(n => n?.String?.sval || n?.sval || '')
       .filter((n: string) => n && n !== 'pg_catalog')
       .join('.')
       .toLowerCase() || 'text'
@@ -77,13 +89,13 @@ function normalizeTypeName(typeNameObj: any): string {
   // Handle typmods (e.g. varchar(255), numeric(10, 2))
   if (Array.isArray(typeNameObj.typmods) && typeNameObj.typmods.length > 0) {
     const mods = typeNameObj.typmods
-      .map((mod: any) => {
+      .map(mod => {
         if (mod?.A_Const?.ival?.ival !== undefined) return mod.A_Const.ival.ival
         if (mod?.A_Const?.fval?.fval !== undefined) return mod.A_Const.fval.fval
         if (mod?.A_Const?.sval?.sval !== undefined) return `'${mod.A_Const.sval.sval}'`
         return null
       })
-      .filter((v: any) => v !== null)
+      .filter((v): v is string | number => v !== null)
 
     if (mods.length > 0) {
       rawName += `(${mods.join(', ')})`
@@ -98,10 +110,52 @@ function normalizeTypeName(typeNameObj: any): string {
   return rawName
 }
 
+export interface PgRawExpr {
+  A_Const?: {
+    ival?: { ival?: number }
+    fval?: { fval?: number }
+    sval?: { sval?: string }
+    boolval?: { boolval?: boolean }
+    isnull?: boolean
+  }
+  ColumnRef?: {
+    fields?: Array<{
+      A_Star?: boolean
+      String?: { sval?: string }
+    }>
+  }
+  FuncCall?: {
+    funcname?: Array<{ String?: { sval?: string } }>
+    args?: PgRawExpr[]
+  }
+  TypeCast?: {
+    arg?: PgRawExpr
+  }
+  A_Expr?: {
+    kind?: string
+    name?: Array<{ String?: { sval?: string } }>
+    lexpr?: PgRawExpr
+    rexpr?: {
+      List?: {
+        items?: PgRawExpr[]
+      }
+    } & PgRawExpr
+  }
+  BoolExpr?: {
+    boolop?: number
+    args?: PgRawExpr[]
+  }
+  NullTest?: {
+    arg?: PgRawExpr
+    nulltesttype?: number
+  }
+  [key: string]: unknown
+}
+
 /**
  * Stringifies raw AST expressions into readable SQL strings, replacing wildcard references with the actual column name
  */
-export function rawExprToString(expr: any, defaultColName = ''): string {
+export function rawExprToString(expr?: PgRawExpr | null, defaultColName = ''): string {
   if (!expr) return ''
 
   // Constant literals (numbers, strings, booleans, null)
@@ -119,7 +173,7 @@ export function rawExprToString(expr: any, defaultColName = ''): string {
   if (expr.ColumnRef) {
     const fields = expr.ColumnRef.fields || []
     const strFields = fields
-      .map((f: any) => {
+      .map(f => {
         if (f?.A_Star) return defaultColName || '*'
         return f?.String?.sval || ''
       })
@@ -134,8 +188,13 @@ export function rawExprToString(expr: any, defaultColName = ''): string {
   // Function calls (e.g. length(title), now())
   if (expr.FuncCall) {
     const fnNames = expr.FuncCall.funcname || []
-    const fnName = fnNames.map((n: any) => n?.String?.sval || '').filter(Boolean).join('.')
-    const args = (expr.FuncCall.args || []).map((arg: any) => rawExprToString(arg, defaultColName)).join(', ')
+    const fnName = fnNames
+      .map(n => n?.String?.sval || '')
+      .filter(Boolean)
+      .join('.')
+    const args = (expr.FuncCall.args || [])
+      .map(arg => rawExprToString(arg, defaultColName))
+      .join(', ')
     return `${fnName}(${args})`
   }
 
@@ -147,13 +206,15 @@ export function rawExprToString(expr: any, defaultColName = ''): string {
   // Binary / Comparison Expressions (A_Expr)
   if (expr.A_Expr) {
     const ae = expr.A_Expr
-    const op = (ae.name || []).map((n: any) => n?.String?.sval || '').join('')
+    const op = (ae.name || []).map(n => n?.String?.sval || '').join('')
     const left = rawExprToString(ae.lexpr, defaultColName)
 
     // IN / NOT IN list expressions
     if (ae.kind === 'AEXPR_IN') {
       const isNotIn = op === '<>' || op === '!='
-      const listItems = (ae.rexpr?.List?.items || []).map((item: any) => rawExprToString(item, defaultColName))
+      const listItems = (ae.rexpr?.List?.items || []).map(item =>
+        rawExprToString(item, defaultColName)
+      )
       return `${left} ${isNotIn ? 'NOT IN' : 'IN'} (${listItems.join(', ')})`
     }
 
@@ -171,7 +232,7 @@ export function rawExprToString(expr: any, defaultColName = ''): string {
   if (expr.BoolExpr) {
     const be = expr.BoolExpr
     const boolOp = be.boolop === 0 ? 'AND' : be.boolop === 1 ? 'OR' : 'NOT'
-    const args = (be.args || []).map((arg: any) => rawExprToString(arg, defaultColName))
+    const args = (be.args || []).map(arg => rawExprToString(arg, defaultColName))
     if (boolOp === 'NOT') {
       return `NOT (${args.join('')})`
     }
@@ -223,7 +284,7 @@ export function interpretCheckCondition(rawCondition: string): string {
     const [, col, list] = inMatch
     const cleanList = list
       .split(',')
-      .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+      .map(item => item.trim().replace(/^['"]|['"]$/g, ''))
       .join(', ')
     return `${col} must be one of: ${cleanList}`
   }
@@ -234,7 +295,7 @@ export function interpretCheckCondition(rawCondition: string): string {
     const [, col, list] = notInMatch
     const cleanList = list
       .split(',')
-      .map((item) => item.trim().replace(/^['"]|['"]$/g, ''))
+      .map(item => item.trim().replace(/^['"]|['"]$/g, ''))
       .join(', ')
     return `${col} cannot be any of: ${cleanList}`
   }
@@ -275,15 +336,55 @@ export function interpretCheckCondition(rawCondition: string): string {
 /**
  * Extracts default value string from raw_expr AST node
  */
-function extractDefaultExpr(rawExpr: any, defaultColName = ''): string | null {
+function extractDefaultExpr(rawExpr?: PgRawExpr | null, defaultColName = ''): string | null {
   const str = rawExprToString(rawExpr, defaultColName)
   return str || null
 }
 
+interface PgParsedConstraint {
+  contype?: string | number
+  raw_expr?: PgRawExpr
+  pktable?: { relname?: string }
+  fk_attrs?: unknown[]
+  pk_attrs?: unknown[]
+  keys?: Array<{ String?: { sval?: string } }>
+}
+
+interface PgTableElt {
+  ColumnDef?: {
+    colname?: string
+    typeName?: PgTypeNameObj
+    is_not_null?: boolean
+    constraints?: Array<{
+      Constraint?: PgParsedConstraint
+    }>
+  }
+  Constraint?: PgParsedConstraint
+  [key: string]: unknown
+}
+
+interface PgParsedStmt {
+  CommentStmt?: {
+    comment?: string
+    objtype?: string | number
+    object?: { List?: { items?: Array<{ String?: { sval?: string } }> } }
+  }
+  CreateStmt?: {
+    relation?: { relname?: string }
+    tableElts?: PgTableElt[]
+  }
+  [key: string]: unknown
+}
+
+export type PgAstInput =
+  | { stmts?: Array<{ stmt?: PgParsedStmt } & PgParsedStmt> }
+  | Array<{ stmt?: PgParsedStmt } & PgParsedStmt>
+  | Record<string, unknown>
+
 /**
  * Compiles a pg-query AST (Abstract Syntax Tree) into a diagram-ready schema structure
  */
-export function compilePgAst(ast: any): CompiledSchema {
+export function compilePgAst(ast?: PgAstInput | null): CompiledSchema {
   const tables: CompiledTable[] = []
   const relations: CompiledRelation[] = []
 
@@ -291,15 +392,19 @@ export function compilePgAst(ast: any): CompiledSchema {
     return { tables, relations }
   }
 
-  const stmts = ast.stmts || []
+  const stmts = (
+    Array.isArray(ast)
+      ? ast
+      : (ast as { stmts?: Array<{ stmt?: PgParsedStmt } & PgParsedStmt> }).stmts || []
+  ) as Array<{ stmt?: PgParsedStmt } & PgParsedStmt>
 
   // Map to collect column and table comments across statements
   const columnCommentsMap: Record<string, string> = {} // key: "table.column"
-  const tableCommentsMap: Record<string, string> = {}  // key: "table"
+  const tableCommentsMap: Record<string, string> = {} // key: "table"
 
   // Pass 1: Collect all comments (COMMENT ON TABLE / COMMENT ON COLUMN)
   for (const stmtWrapper of stmts) {
-    const stmt = stmtWrapper?.stmt || stmtWrapper
+    const stmt: PgParsedStmt = stmtWrapper?.stmt || stmtWrapper
     const commentStmt = stmt?.CommentStmt
 
     if (commentStmt && commentStmt.comment) {
@@ -350,7 +455,7 @@ export function compilePgAst(ast: any): CompiledSchema {
       if (!colDef) continue
 
       const colName = colDef.colname
-      let typeStr = normalizeTypeName(colDef.typeName)
+      const typeStr = normalizeTypeName(colDef.typeName)
       let isPk = false
       let isNotNull = Boolean(colDef.is_not_null)
       let isUnq = false
@@ -404,7 +509,9 @@ export function compilePgAst(ast: any): CompiledSchema {
         // Foreign Key (Column-level)
         if (contype === 'CONSTR_FOREIGN' || contype === 7 || constraint.pktable) {
           const targetTable = constraint.pktable?.relname || ''
-          const targetCol = constraint.pk_attrs?.[0]?.String?.sval || 'id'
+          const targetCol =
+            (constraint.pk_attrs?.[0] as { String?: { sval?: string } } | undefined)?.String
+              ?.sval || 'id'
           if (targetTable) {
             isFk = true
             refTarget = { table: targetTable, column: targetCol }
@@ -413,7 +520,7 @@ export function compilePgAst(ast: any): CompiledSchema {
               from: `${tableName}.${colName}`,
               to: `${targetTable}.${targetCol}`,
               fromTable: tableName,
-              fromColumn: colName,
+              fromColumn: colName || '',
               toTable: targetTable,
               toColumn: targetCol,
             })
@@ -434,7 +541,7 @@ export function compilePgAst(ast: any): CompiledSchema {
       const colComment = columnCommentsMap[commentKey] || null
 
       columns.push({
-        name: colName,
+        name: colName || 'unnamed_column',
         type: typeStr,
         isPrimaryKey: isPk,
         isNullable: !isNotNull && !isPk,
@@ -479,7 +586,7 @@ export function compilePgAst(ast: any): CompiledSchema {
       if (contype === 'CONSTR_CHECK' || contype === 3) {
         const rawSql = rawExprToString(constraint.raw_expr)
         if (rawSql) {
-          const foundCol = columns.find((c) => rawSql.includes(c.name))
+          const foundCol = columns.find(c => rawSql.includes(c.name))
           const colName = foundCol?.name || ''
           const humanReadable = interpretCheckCondition(rawSql)
 
@@ -498,20 +605,20 @@ export function compilePgAst(ast: any): CompiledSchema {
         constraint.pktable &&
         Array.isArray(constraint.fk_attrs)
       ) {
-        const targetTable = constraint.pktable?.relname || ''
-        const fkCols = constraint.fk_attrs || []
-        const pkCols = constraint.pk_attrs || []
+        const targetTable = (constraint.pktable as { relname?: string })?.relname || ''
+        const fkCols = (constraint.fk_attrs as unknown[]) || []
+        const pkCols = (constraint.pk_attrs as unknown[]) || []
 
-        fkCols.forEach((src: any, idx: number) => {
-          const srcColName = src?.String?.sval || ''
-          const tgtColName = pkCols[idx]?.String?.sval || 'id'
+        fkCols.forEach((src: unknown, idx: number) => {
+          const srcColName = (src as { String?: { sval?: string } })?.String?.sval || ''
+          const tgtColName = (pkCols[idx] as { String?: { sval?: string } })?.String?.sval || 'id'
 
           if (srcColName && targetTable) {
-            const col = columns.find((c) => c.name === srcColName)
+            const col = columns.find(c => c.name === srcColName)
             if (col) {
               col.isForeignKey = true
               col.references = { table: targetTable, column: tgtColName }
-              if (!col.constraintsList?.some((cl) => cl.startsWith('REFERENCES'))) {
+              if (!col.constraintsList?.some(cl => cl.startsWith('REFERENCES'))) {
                 col.constraintsList?.push(`REFERENCES ${targetTable}(${tgtColName})`)
               }
             }

@@ -1,16 +1,16 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  compatibilityDate: "2024-11-01",
+  compatibilityDate: '2024-11-01',
   devtools: { enabled: false },
   ssr: false,
 
-  modules: ["@nuxt/ui"],
+  modules: ['@nuxt/ui'],
 
-  css: ["~/assets/css/main.css"],
+  css: ['~/assets/css/main.css'],
 
   colorMode: {
-    preference: "dark",
-    fallback: "dark",
+    preference: 'dark',
+    fallback: 'dark',
   },
 
   experimental: {
@@ -19,7 +19,7 @@ export default defineNuxtConfig({
 
   components: [
     {
-      path: "~/components",
+      path: '~/components',
       pathPrefix: true,
     },
   ],
@@ -27,13 +27,13 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        "monaco-editor",
-        "@vue-flow/core",
-        "@vue-flow/background",
-        "elkjs/lib/elk.bundled.js",
-        "html-to-image",
+        'monaco-editor',
+        '@vue-flow/core',
+        '@vue-flow/background',
+        'elkjs/lib/elk.bundled.js',
+        'html-to-image',
       ],
-      exclude: ["pg-query-emscripten"],
+      exclude: ['pg-query-emscripten'],
     },
   },
 
@@ -43,28 +43,27 @@ export default defineNuxtConfig({
 
   app: {
     head: {
-      title: "SchemaCraft - Database Diagram Visual Editor",
+      title: 'SchemaCraft - Database Diagram Visual Editor',
       meta: [
-        { charset: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { charset: 'utf-8' },
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
         {
-          name: "description",
-          content:
-            "Interactive Database Diagram Visual Editor with SQL Monaco IDE",
+          name: 'description',
+          content: 'Interactive Database Diagram Visual Editor with SQL Monaco IDE',
         },
       ],
       link: [
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossorigin: "",
+          rel: 'preconnect',
+          href: 'https://fonts.gstatic.com',
+          crossorigin: '',
         },
         {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap",
+          rel: 'stylesheet',
+          href: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap',
         },
       ],
     },
   },
-});
+})

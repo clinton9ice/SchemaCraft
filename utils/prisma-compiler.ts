@@ -1,10 +1,18 @@
-import type { CompiledTable, CompiledColumn, CompiledRelation, CompiledSchema } from './sql-compiler'
+import type {
+  CompiledTable,
+  CompiledColumn,
+  CompiledRelation,
+  CompiledSchema,
+} from './sql-compiler'
 import type { SyntaxDiagnosticError } from './dbml-compiler'
 
 /**
  * Validates Prisma Schema syntax with precise line/column tracking
  */
-export function validatePrismaCode(prismaCode: string): { valid: boolean; error: SyntaxDiagnosticError | null } {
+export function validatePrismaCode(prismaCode: string): {
+  valid: boolean
+  error: SyntaxDiagnosticError | null
+} {
   if (!prismaCode || !prismaCode.trim()) {
     return { valid: true, error: null }
   }
@@ -40,7 +48,9 @@ export function validatePrismaCode(prismaCode: string): { valid: boolean; error:
     }
 
     // Check for block declaration headers
-    const blockMatch = trimmed.match(/^(model|enum|datasource|generator|type|view)\s+([a-zA-Z0-9_]+)\s*(\{)?/i)
+    const blockMatch = trimmed.match(
+      /^(model|enum|datasource|generator|type|view)\s+([a-zA-Z0-9_]+)\s*(\{)?/i
+    )
     if (blockMatch) {
       const blockType = blockMatch[1].toLowerCase()
       const blockName = blockMatch[2]
@@ -186,7 +196,6 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
   const lines = prismaCode.split('\n')
 
   let currentTable: CompiledTable | null = null
-  let currentModelRawName = ''
   let tableDocNote: string | null = null
 
   for (let i = 0; i < lines.length; i++) {
@@ -207,9 +216,9 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
     // Detect model start: model User { or model Post {
     const modelMatch = rawLine.match(/^model\s+([a-zA-Z0-9_]+)\s*\{/i)
     if (modelMatch) {
-      currentModelRawName = modelMatch[1]
+      const modelName = modelMatch[1]
       currentTable = {
-        name: currentModelRawName.toLowerCase(),
+        name: modelName.toLowerCase(),
         columns: [],
         comment: tableDocNote,
       }
@@ -230,7 +239,6 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
     if (rawLine === '}' && currentTable) {
       tables.push(currentTable)
       currentTable = null
-      currentModelRawName = ''
       continue
     }
 
@@ -257,7 +265,9 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
         const attributesStr = fieldMatch[4] || ''
 
         // Check if relation attribute: @relation(fields: [authorId], references: [id])
-        const relMatch = attributesStr.match(/@relation\((?:.*fields:\s*\[([^\]]+)\].*)?(?:.*references:\s*\[([^\]]+)\].*)?\)/i)
+        const relMatch = attributesStr.match(
+          /@relation\((?:.*fields:\s*\[([^\]]+)\].*)?(?:.*references:\s*\[([^\]]+)\].*)?\)/i
+        )
         if (relMatch && relMatch[1] && relMatch[2]) {
           const fromCol = relMatch[1].trim()
           const toCol = relMatch[2].trim()
@@ -279,9 +289,9 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
           continue
         }
 
-        let isPk = /@id\b/i.test(attributesStr)
-        let isUnq = /@unique\b/i.test(attributesStr)
-        let isNullable = typeModifier === '?'
+        const isPk = /@id\b/i.test(attributesStr)
+        const isUnq = /@unique\b/i.test(attributesStr)
+        const isNullable = typeModifier === '?'
         let defaultVal: string | null = null
         const constraintsList: string[] = []
 
@@ -333,15 +343,17 @@ export function parsePrisma(prismaCode: string): CompiledSchema {
     const toTable = rel.toTable || rel.to.split('.')[0]
     const toCol = rel.toColumn || rel.to.split('.')[1]
 
-    const targetTable = tables.find((t) => t.name.toLowerCase() === fromTable.toLowerCase())
+    const targetTable = tables.find(t => t.name.toLowerCase() === fromTable.toLowerCase())
     if (targetTable) {
       const targetColumn = targetTable.columns.find(
-        (c) => c.name.toLowerCase() === fromCol.toLowerCase() || toCamelCase(c.name).toLowerCase() === fromCol.toLowerCase()
+        c =>
+          c.name.toLowerCase() === fromCol.toLowerCase() ||
+          toCamelCase(c.name).toLowerCase() === fromCol.toLowerCase()
       )
       if (targetColumn) {
         targetColumn.isForeignKey = true
         targetColumn.references = { table: toTable, column: toCol }
-        if (!targetColumn.constraintsList?.some((cl) => cl.startsWith('REFERENCES'))) {
+        if (!targetColumn.constraintsList?.some(cl => cl.startsWith('REFERENCES'))) {
           targetColumn.constraintsList = targetColumn.constraintsList || []
           targetColumn.constraintsList.push(`REFERENCES ${toTable}(${toCol})`)
         }
@@ -437,7 +449,11 @@ export function tablesToPrisma(tables: CompiledTable[], relations?: CompiledRela
 
       if (col.isPrimaryKey) {
         attributes.push('@id')
-        if (col.type === 'serial' || col.type === 'bigserial' || col.constraintsList?.includes('AUTO_INCREMENT')) {
+        if (
+          col.type === 'serial' ||
+          col.type === 'bigserial' ||
+          col.constraintsList?.includes('AUTO_INCREMENT')
+        ) {
           attributes.push('@default(autoincrement())')
         }
       }
@@ -488,7 +504,9 @@ export function tablesToPrisma(tables: CompiledTable[], relations?: CompiledRela
           const relFieldName = toCamelCase(targetModel)
           const localFieldName = toCamelCase(fromC)
           const targetKeyName = toCamelCase(toC)
-          lines.push(`  ${relFieldName} ${targetModel} @relation(fields: [${localFieldName}], references: [${targetKeyName}], onDelete: Cascade)`)
+          lines.push(
+            `  ${relFieldName} ${targetModel} @relation(fields: [${localFieldName}], references: [${targetKeyName}], onDelete: Cascade)`
+          )
         }
       }
     }
@@ -504,20 +522,28 @@ export function tablesToPrisma(tables: CompiledTable[], relations?: CompiledRela
   return lines.join('\n')
 }
 
-function mapSqlTypeToPrisma(sqlType: string, isPk = false): string {
+function mapSqlTypeToPrisma(sqlType: string, _isPk = false): string {
   const lower = (sqlType || '').toLowerCase()
-  if (lower === 'serial' || lower === 'integer' || lower === 'int' || lower === 'smallint') return 'Int'
+  if (lower === 'serial' || lower === 'integer' || lower === 'int' || lower === 'smallint')
+    return 'Int'
   if (lower === 'bigserial' || lower === 'bigint') return 'BigInt'
   if (lower === 'boolean' || lower === 'bool') return 'Boolean'
   if (lower === 'timestamp' || lower === 'timestamptz' || lower === 'date') return 'DateTime'
   if (lower === 'json' || lower === 'jsonb') return 'Json'
-  if (lower === 'float' || lower === 'real' || lower === 'double precision' || lower === 'numeric' || lower === 'decimal') return 'Float'
+  if (
+    lower === 'float' ||
+    lower === 'real' ||
+    lower === 'double precision' ||
+    lower === 'numeric' ||
+    lower === 'decimal'
+  )
+    return 'Float'
   if (lower === 'bytea') return 'Bytes'
   return 'String'
 }
 
 function toCamelCase(str: string): string {
-  return str.replace(/([-_][a-z])/gi, ($1) => $1.toUpperCase().replace('-', '').replace('_', ''))
+  return str.replace(/([-_][a-z])/gi, $1 => $1.toUpperCase().replace('-', '').replace('_', ''))
 }
 
 function capitalizeFirst(str: string): string {
@@ -549,7 +575,10 @@ export function prismaToSql(prismaCode: string): string {
       }
       if (col.defaultValue !== undefined && col.defaultValue !== null && col.defaultValue !== '') {
         const rawVal = String(col.defaultValue).trim()
-        if (/^(?:true|false|null|\d+(?:\.\d+)?)$/i.test(rawVal) || /^(?:now\(\)|gen_random_uuid\(\)|current_timestamp)/i.test(rawVal)) {
+        if (
+          /^(?:true|false|null|\d+(?:\.\d+)?)$/i.test(rawVal) ||
+          /^(?:now\(\)|gen_random_uuid\(\)|current_timestamp)/i.test(rawVal)
+        ) {
           parts.push(`DEFAULT ${rawVal}`)
         } else {
           const cleanStr = rawVal.replace(/^['"`]+|['"`]+$/g, '')
@@ -576,7 +605,9 @@ export function prismaToSql(prismaCode: string): string {
     for (const col of table.columns) {
       if (col.comment) {
         const cleanColComment = String(col.comment).replace(/^['"`]+|['"`]+$/g, '')
-        statements.push(`COMMENT ON COLUMN ${table.name}.${col.name} IS '${cleanColComment.replace(/'/g, "''")}';`)
+        statements.push(
+          `COMMENT ON COLUMN ${table.name}.${col.name} IS '${cleanColComment.replace(/'/g, "''")}';`
+        )
       }
     }
 

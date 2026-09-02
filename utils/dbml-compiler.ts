@@ -1,4 +1,9 @@
-import type { CompiledTable, CompiledColumn, CompiledRelation, CompiledSchema } from './sql-compiler'
+import type {
+  CompiledTable,
+  CompiledColumn,
+  CompiledRelation,
+  CompiledSchema,
+} from './sql-compiler'
 
 export interface SyntaxDiagnosticError {
   message: string
@@ -11,7 +16,10 @@ export interface SyntaxDiagnosticError {
 /**
  * Validates DBML code syntax with precise line/column tracking
  */
-export function validateDbmlCode(dbmlCode: string): { valid: boolean; error: SyntaxDiagnosticError | null } {
+export function validateDbmlCode(dbmlCode: string): {
+  valid: boolean
+  error: SyntaxDiagnosticError | null
+} {
   if (!dbmlCode || !dbmlCode.trim()) {
     return { valid: true, error: null }
   }
@@ -47,7 +55,9 @@ export function validateDbmlCode(dbmlCode: string): { valid: boolean; error: Syn
     }
 
     // Check for Table definition header
-    const tableHeaderMatch = trimmed.match(/^Table\s+(?:(?:"([^"]+)")|([a-zA-Z0-9_]+))(?:\s+as\s+[\w_]+)?\s*(\{)?/i)
+    const tableHeaderMatch = trimmed.match(
+      /^Table\s+(?:(?:"([^"]+)")|([a-zA-Z0-9_]+))(?:\s+as\s+[\w_]+)?\s*(\{)?/i
+    )
     if (tableHeaderMatch) {
       const tableName = (tableHeaderMatch[1] || tableHeaderMatch[2] || '').toLowerCase()
       if (tableNames.has(tableName)) {
@@ -73,12 +83,14 @@ export function validateDbmlCode(dbmlCode: string): { valid: boolean; error: Syn
 
     // Standalone Ref statement: Ref: posts.author_id > users.id
     if (/^Ref\b/i.test(trimmed)) {
-      const refMatch = trimmed.match(/^Ref(?:\s+[\w_]+)?\s*:\s*([\w_]+)\.([\w_]+)\s*([><-])\s*([\w_]+)\.([\w_]+)/i)
+      const refMatch = trimmed.match(
+        /^Ref(?:\s+[\w_]+)?\s*:\s*([\w_]+)\.([\w_]+)\s*([><-])\s*([\w_]+)\.([\w_]+)/i
+      )
       if (!refMatch) {
         return {
           valid: false,
           error: {
-            message: "Malformed Ref syntax. Expected format: `Ref: from_table.col > to_table.col`",
+            message: 'Malformed Ref syntax. Expected format: `Ref: from_table.col > to_table.col`',
             lineNumber: lineNum,
             column: 1,
             endLineNumber: lineNum,
@@ -117,12 +129,18 @@ export function validateDbmlCode(dbmlCode: string): { valid: boolean; error: Syn
 
     // Inside a block (e.g. Table body)
     if (openBraces > 0) {
-      if (trimmed.startsWith('Note:') || trimmed.startsWith('indexes {') || trimmed.startsWith('//')) {
+      if (
+        trimmed.startsWith('Note:') ||
+        trimmed.startsWith('indexes {') ||
+        trimmed.startsWith('//')
+      ) {
         continue
       }
 
       // Column check: name type [settings]
-      const colMatch = trimmed.match(/^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+(?:\([^)]+\))?)(?:\s*\[(.*)\])?/i)
+      const colMatch = trimmed.match(
+        /^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+(?:\([^)]+\))?)(?:\s*\[(.*)\])?/i
+      )
       if (!colMatch) {
         return {
           valid: false,
@@ -180,7 +198,7 @@ export function parseDbml(dbmlCode: string): CompiledSchema {
   }
 
   // Remove comments (// or /* ... */)
-  let cleanCode = dbmlCode.replace(/\/\*[\s\S]*?\*\//g, '')
+  const cleanCode = dbmlCode.replace(/\/\*[\s\S]*?\*\//g, '')
   const lines = cleanCode.split('\n')
 
   let currentTable: CompiledTable | null = null
@@ -191,7 +209,9 @@ export function parseDbml(dbmlCode: string): CompiledSchema {
     if (!rawLine || rawLine.startsWith('//')) continue
 
     // Detect Standalone Relationship (Ref: posts.author_id > users.id)
-    const refMatch = rawLine.match(/^Ref(?:\s+[\w_]+)?\s*:\s*([\w_]+)\.([\w_]+)\s*([><-])\s*([\w_]+)\.([\w_]+)/i)
+    const refMatch = rawLine.match(
+      /^Ref(?:\s+[\w_]+)?\s*:\s*([\w_]+)\.([\w_]+)\s*([><-])\s*([\w_]+)\.([\w_]+)/i
+    )
     if (refMatch) {
       const [, fromTable, fromCol, , toTable, toCol] = refMatch
       relations.push({
@@ -206,7 +226,9 @@ export function parseDbml(dbmlCode: string): CompiledSchema {
     }
 
     // Detect Table start: Table users { or Table "users" as u {
-    const tableHeaderMatch = rawLine.match(/^Table\s+(?:(?:"([^"]+)")|([a-zA-Z0-9_]+))(?:\s+as\s+[\w_]+)?\s*\{/i)
+    const tableHeaderMatch = rawLine.match(
+      /^Table\s+(?:(?:"([^"]+)")|([a-zA-Z0-9_]+))(?:\s+as\s+[\w_]+)?\s*\{/i
+    )
     if (tableHeaderMatch) {
       const tableName = tableHeaderMatch[1] || tableHeaderMatch[2]
       currentTable = {
@@ -245,7 +267,9 @@ export function parseDbml(dbmlCode: string): CompiledSchema {
       }
 
       // Column Definition: id integer [pk, increment, not null, default: 1, note: 'Primary identifier']
-      const colMatch = rawLine.match(/^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+(?:\([^)]+\))?)(?:\s*\[(.*)\])?/i)
+      const colMatch = rawLine.match(
+        /^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+(?:\([^)]+\))?)(?:\s*\[(.*)\])?/i
+      )
       if (colMatch) {
         const colName = colMatch[1]
         const colType = colMatch[2]
@@ -344,13 +368,15 @@ export function parseDbml(dbmlCode: string): CompiledSchema {
     const toTable = rel.toTable || rel.to.split('.')[0]
     const toCol = rel.toColumn || rel.to.split('.')[1]
 
-    const targetTable = tables.find((t) => t.name.toLowerCase() === fromTable.toLowerCase())
+    const targetTable = tables.find(t => t.name.toLowerCase() === fromTable.toLowerCase())
     if (targetTable) {
-      const targetColumn = targetTable.columns.find((c) => c.name.toLowerCase() === fromCol.toLowerCase())
+      const targetColumn = targetTable.columns.find(
+        c => c.name.toLowerCase() === fromCol.toLowerCase()
+      )
       if (targetColumn) {
         targetColumn.isForeignKey = true
         targetColumn.references = { table: toTable, column: toCol }
-        if (!targetColumn.constraintsList?.some((cl) => cl.startsWith('REFERENCES'))) {
+        if (!targetColumn.constraintsList?.some(cl => cl.startsWith('REFERENCES'))) {
           targetColumn.constraintsList = targetColumn.constraintsList || []
           targetColumn.constraintsList.push(`REFERENCES ${toTable}(${toCol})`)
         }
@@ -423,7 +449,9 @@ export function tablesToDbml(tables: CompiledTable[], relations?: CompiledRelati
         const rawVal = String(col.defaultValue).trim()
         if (/^(?:true|false|null|\d+(?:\.\d+)?)$/i.test(rawVal)) {
           settings.push(`default: ${rawVal}`)
-        } else if (/^(?:now\(\)|gen_random_uuid\(\)|current_timestamp|uuid_generate_v4\(\))/i.test(rawVal)) {
+        } else if (
+          /^(?:now\(\)|gen_random_uuid\(\)|current_timestamp|uuid_generate_v4\(\))/i.test(rawVal)
+        ) {
           settings.push(`default: \`${rawVal}\``)
         } else {
           const cleanStr = rawVal.replace(/^['"`]+|['"`]+$/g, '')
@@ -457,7 +485,9 @@ export function tablesToDbml(tables: CompiledTable[], relations?: CompiledRelati
     for (const t of tables) {
       for (const c of t.columns) {
         if (c.references) {
-          existingInlineRefs.add(`${t.name}.${c.name}->${c.references.table}.${c.references.column}`)
+          existingInlineRefs.add(
+            `${t.name}.${c.name}->${c.references.table}.${c.references.column}`
+          )
         }
       }
     }
@@ -498,7 +528,10 @@ export function dbmlToSql(dbmlCode: string): string {
       }
       if (col.defaultValue !== undefined && col.defaultValue !== null && col.defaultValue !== '') {
         const rawVal = String(col.defaultValue).trim()
-        if (/^(?:true|false|null|\d+(?:\.\d+)?)$/i.test(rawVal) || /^(?:now\(\)|gen_random_uuid\(\)|current_timestamp)/i.test(rawVal)) {
+        if (
+          /^(?:true|false|null|\d+(?:\.\d+)?)$/i.test(rawVal) ||
+          /^(?:now\(\)|gen_random_uuid\(\)|current_timestamp)/i.test(rawVal)
+        ) {
           parts.push(`DEFAULT ${rawVal}`)
         } else {
           const cleanStr = rawVal.replace(/^['"`]+|['"`]+$/g, '')
@@ -527,7 +560,9 @@ export function dbmlToSql(dbmlCode: string): string {
     for (const col of table.columns) {
       if (col.comment) {
         const cleanColComment = String(col.comment).replace(/^['"`]+|['"`]+$/g, '')
-        statements.push(`COMMENT ON COLUMN ${table.name}.${col.name} IS '${cleanColComment.replace(/'/g, "''")}';`)
+        statements.push(
+          `COMMENT ON COLUMN ${table.name}.${col.name} IS '${cleanColComment.replace(/'/g, "''")}';`
+        )
       }
     }
 

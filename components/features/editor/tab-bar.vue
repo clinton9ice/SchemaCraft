@@ -4,7 +4,9 @@ const { validationError } = usePostgresValidator()
 </script>
 
 <template>
-  <div class="h-9 bg-[#1e1e1e] border-b border-[#2d2d30] flex items-center justify-between px-2 shrink-0 select-none">
+  <div
+    class="h-9 bg-[#1e1e1e] border-b border-[#2d2d30] flex items-center justify-between px-2 shrink-0 select-none"
+  >
     <!-- Left: Tabs -->
     <div class="flex items-center h-full">
       <div
@@ -13,8 +15,12 @@ const { validationError } = usePostgresValidator()
       >
         <!-- SQL Icon -->
         <span class="text-sky-400 font-mono text-[11px] font-bold">SQL</span>
-        <span :class="validationError ? 'text-red-300' : 'text-neutral-100'" class="font-mono text-xs">{{ fileName }}</span>
-        
+        <span
+          :class="validationError ? 'text-red-300' : 'text-neutral-100'"
+          class="font-mono text-xs"
+          >{{ fileName }}</span
+        >
+
         <!-- Error / Dirty indicator circle -->
         <span
           v-if="validationError"
@@ -33,15 +39,21 @@ const { validationError } = usePostgresValidator()
     <div class="flex items-center gap-1">
       <button
         type="button"
-        @click="formatSql"
         class="p-1 text-neutral-400 hover:text-white hover:bg-[#2d2d30] rounded transition-colors cursor-pointer"
         title="Format SQL Document (Shift+Alt+F)"
+        @click="formatSql"
       >
-        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="21" y1="10" x2="3" y2="10"/>
-          <line x1="21" y1="6" x2="3" y2="6"/>
-          <line x1="21" y1="14" x2="3" y2="14"/>
-          <line x1="21" y1="18" x2="3" y2="18"/>
+        <svg
+          class="w-3.5 h-3.5"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="21" y1="10" x2="3" y2="10" />
+          <line x1="21" y1="6" x2="3" y2="6" />
+          <line x1="21" y1="14" x2="3" y2="14" />
+          <line x1="21" y1="18" x2="3" y2="18" />
         </svg>
       </button>
 

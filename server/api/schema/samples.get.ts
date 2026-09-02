@@ -65,7 +65,7 @@ CREATE TABLE post_tags (
     post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
     PRIMARY KEY (post_id, tag_id)
-);`
+);`,
     },
     {
       id: 'ecommerce',
@@ -129,7 +129,7 @@ CREATE TABLE order_items (
     quantity INTEGER NOT NULL DEFAULT 1,
     unit_price NUMERIC(10, 2) NOT NULL,
     subtotal NUMERIC(10, 2) NOT NULL
-);`
+);`,
     },
     {
       id: 'dbml-social',
@@ -173,12 +173,13 @@ Table comments {
   user_id int [not null, ref: > users.id]
   content text [not null]
   created_at timestamp [default: 'now()']
-}`
+}`,
     },
     {
       id: 'prisma-saas',
       label: 'SaaS Platform (Prisma)',
-      description: 'Organizations, users, memberships, projects, and api keys in Prisma Schema format.',
+      description:
+        'Organizations, users, memberships, projects, and api keys in Prisma Schema format.',
       language: 'prisma',
       sql: `// Prisma Schema Definition
 
@@ -227,7 +228,7 @@ model Project {
   name           String
   description    String?
   createdAt      DateTime     @default(now())
-}`
-    }
+}`,
+    },
   ]
 })

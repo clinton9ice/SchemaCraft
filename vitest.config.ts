@@ -4,5 +4,5 @@ export default defineVitestConfig({
   test: {
     environment: 'node',
     globals: true,
-  }
+  },
 })
