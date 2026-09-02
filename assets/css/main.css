@@ -17,6 +17,7 @@
     --tab-bar-bg: #141414;
     --tab-active-bg: #1e1e1e;
     --tab-active-accent: #38bdf8;
+    --status-bar-bg: #0e639c;
     --canvas-bg: #0b0f17;
     --node-bg: #121620;
     --node-header: #181d2a;
@@ -33,13 +34,14 @@
     --tab-bar-bg: #1e1f1c;
     --tab-active-bg: #272822;
     --tab-active-accent: #f92672;
-    --canvas-bg: #1b1c18;
+    --status-bar-bg: #1e1f1c;
+    --canvas-bg: #1e1f1c;
     --node-bg: #272822;
-    --node-header: #1e1f1c;
+    --node-header: #191a16;
     --node-border: #49483e;
     --accent: #f92672;
     --text-primary: #f8f8f2;
-    --text-muted: #75715e;
+    --text-muted: #90908a;
   }
 
   /* Dracula Theme */
@@ -49,6 +51,7 @@
     --tab-bar-bg: #21222c;
     --tab-active-bg: #282a36;
     --tab-active-accent: #bd93f9;
+    --status-bar-bg: #191a21;
     --canvas-bg: #191a21;
     --node-bg: #282a36;
     --node-header: #21222c;
@@ -65,6 +68,7 @@
     --tab-bar-bg: #242933;
     --tab-active-bg: #2e3440;
     --tab-active-accent: #88c0d0;
+    --status-bar-bg: #242933;
     --canvas-bg: #1f232a;
     --node-bg: #2e3440;
     --node-header: #3b4252;
@@ -82,6 +86,7 @@
     --tab-bar-bg: #f1f5f9;
     --tab-active-bg: #ffffff;
     --tab-active-accent: #2563eb;
+    --status-bar-bg: #007acc;
     --canvas-bg: #f8fafc;
     --node-bg: #ffffff;
     --node-header: #f1f5f9;

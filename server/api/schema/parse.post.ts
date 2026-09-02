@@ -2,6 +2,8 @@ import pgQuery from 'pg-query-emscripten'
 import { compilePgAst } from '~/utils/sql-compiler'
 import { parseDbml, validateDbmlCode } from '~/utils/dbml-compiler'
 import { parsePrisma, validatePrismaCode } from '~/utils/prisma-compiler'
+import { compileTypeORM } from '~/utils/typeorm-compiler'
+import { compileDrizzle } from '~/utils/drizzle-compiler'
 
 let parserInstance: any = null
 
@@ -13,7 +15,7 @@ async function getParser() {
 }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ sql?: string; language?: 'sql' | 'dbml' | 'prisma' }>(event)
+  const body = await readBody<{ sql?: string; language?: 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle' }>(event)
   const code = body?.sql || ''
   const language = body?.language || 'sql'
 
@@ -23,6 +25,47 @@ export default defineEventHandler(async (event) => {
       tables: [],
       relations: [],
       error: null,
+    }
+  }
+
+  // Handle Drizzle Parser
+  if (language === 'drizzle' || /\b(?:pgTable|mysqlTable|sqliteTable)\s*\(|from\s+['"]drizzle-orm/im.test(code)) {
+    try {
+      const compiled = compileDrizzle(code)
+      return {
+        success: true,
+        tables: compiled.tables,
+        relations: compiled.relations,
+        error: null,
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Drizzle parsing error'
+      return {
+        success: false,
+        tables: [],
+        relations: [],
+        error: { message: msg, lineNumber: 1, column: 1 },
+      }
+    }
+  }
+
+  // Handle TypeORM Parser
+  if (language === 'typeorm' || /@Entity\b|from\s+['"]typeorm['"]/im.test(code)) {
+    try {
+      const compiled = compileTypeORM(code)
+      return {
+        success: true,
+        tables: compiled.tables,
+        relations: compiled.relations,
+        error: null,
+      }
+    } catch (err: any) {
+      return {
+        success: false,
+        tables: [],
+        relations: [],
+        error: { message: err?.message || 'TypeORM parsing error', lineNumber: 1, column: 1 },
+      }
     }
   }
 

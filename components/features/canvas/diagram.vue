@@ -1,14 +1,27 @@
 <script setup lang="ts">
+import { shallowRef } from 'vue'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
+import type { Node, Edge } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { layoutWithElk } from '~/utils/elk-layout'
+import type { CompiledColumn } from '~/utils/sql-compiler'
 import TableNode from './table-node.vue'
+
+export interface TableNodeData {
+  name: string
+  columns: CompiledColumn[]
+  comment?: string | null
+}
+
+export type TableDiagramNode = Node<TableNodeData>
+export type TableDiagramEdge = Edge
 
 const { parsedTables, parsedRelations, isParsing, lastSaveTimestamp, activeTabId } = useSchemaStore()
 const { exportDiagramAsImage, isExportingImage } = useFileSystem()
 
-const nodes = ref<any[]>([])
-const edges = ref<any[]>([])
+// Enterprise Optimization: shallowRef eliminates proxy overhead on large graphs
+const nodes = shallowRef<TableDiagramNode[]>([])
+const edges = shallowRef<TableDiagramEdge[]>([])
 const isLayouting = ref(false)
 
 const {
@@ -107,9 +120,9 @@ function buildVueFlowEdges(relations: typeof parsedRelations.value, validNodeIds
         label: `${fromCol} → ${toCol}`,
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 4,
-        labelBgStyle: { fill: '#141822', fillOpacity: 0.9, stroke: '#2e384d', strokeWidth: 1 },
-        labelStyle: { fill: '#94a3b8', fontSize: 10, fontFamily: 'monospace', fontWeight: '500' },
-        style: { stroke: '#38bdf8', strokeWidth: 2 },
+        labelBgStyle: { fill: 'var(--header-bg)', fillOpacity: 0.95, stroke: 'var(--node-border)', strokeWidth: 1 },
+        labelStyle: { fill: 'var(--text-muted)', fontSize: 10, fontFamily: 'monospace', fontWeight: '500' },
+        style: { stroke: 'var(--accent)', strokeWidth: 2 },
       }
     })
     .filter((e): e is NonNullable<typeof e> => e !== null)
@@ -178,9 +191,11 @@ function toggleGridPattern() {
 function toggleEdgeRouting() {
   const newType = edgeRoutingType.value === 'smoothstep' ? 'step' : 'smoothstep'
   edgeRoutingType.value = newType
-  edges.value.forEach((e) => {
-    e.type = newType
-  })
+  // For shallowRef, create a new array reference to trigger reactivity
+  edges.value = edges.value.map((e) => ({
+    ...e,
+    type: newType,
+  }))
 }
 
 // Watch for manual 'Save' event or schema update -> auto-rearrange diagram with ELK
@@ -202,8 +217,27 @@ watch(activeTabId, () => {
   applyElkLayout(true)
 })
 
+function onFitViewEvent() {
+  nextTick(() => {
+    setTimeout(() => {
+      handleFitView()
+    }, 150)
+  })
+}
+
 onMounted(() => {
   applyElkLayout(true)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', updateZoomState)
+    window.addEventListener('schemacraft:fit-view', onFitViewEvent)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', updateZoomState)
+    window.removeEventListener('schemacraft:fit-view', onFitViewEvent)
+  }
 })
 </script>
 

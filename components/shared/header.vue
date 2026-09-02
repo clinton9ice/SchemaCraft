@@ -15,6 +15,7 @@ const {
   saveSqlFile,
   exportDiagramAsImage,
   isExportingImage,
+  isSavingFile,
 } = useFileSystem()
 
 const { currentTheme, showThemeModal, activeThemeDef, setTheme, initTheme } = useThemeEngine()
@@ -300,11 +301,11 @@ function handleMobilePreset(id: string) {
       <button
         type="button"
         @click="saveSqlFile(false)"
-        :disabled="isSaving"
+        :disabled="isSaving || isSavingFile"
         class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-semibold rounded-md shadow-sm transition-all duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500/40 disabled:opacity-50"
-        title="Save SQL Schema to disk (Cmd+S / Ctrl+S)"
+        title="Save Schema to disk (Cmd+S / Ctrl+S)"
       >
-        <svg v-if="!isSaving" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg v-if="!isSaving && !isSavingFile" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
           <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
           <path d="M7 3v4a1 1 0 0 0 1 1h7" />
@@ -312,7 +313,7 @@ function handleMobilePreset(id: string) {
         <svg v-else class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
-        <span>{{ isSaving ? 'Saving...' : 'Save' }}</span>
+        <span>{{ isSaving || isSavingFile ? 'Saving...' : 'Save' }}</span>
         <ui-keyboard-shortcut class="hidden sm:inline-flex">⌘S</ui-keyboard-shortcut>
       </button>
 
@@ -331,62 +332,59 @@ function handleMobilePreset(id: string) {
       </button>
     </div>
 
-    <!-- MOBILE SLIDEOVER DRAWER (< 520px) -->
+    <!-- Teleported Mobile Drawer Overlay & Sidebar -->
     <Teleport to="body">
-      <div v-if="showMobileDrawer" class="fixed inset-0 z-50 overflow-hidden select-none">
-        <!-- Backdrop Blur overlay -->
+      <div
+        v-if="showMobileDrawer"
+        class="fixed inset-0 z-50 flex select-none md:hidden"
+      >
+        <!-- Backdrop -->
         <div
-          class="absolute inset-0 bg-black/70 backdrop-blur-xs transition-opacity duration-300"
+          class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
           @click="showMobileDrawer = false"
         />
 
-        <!-- Slide Drawer Panel (from right) -->
-        <div class="fixed inset-y-0 right-0 max-w-full flex pl-10">
-          <div
-            class="w-screen max-w-xs bg-[var(--header-bg)] border-l border-[var(--node-border)] shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-right duration-200 text-[var(--text-primary)]"
-          >
-            <!-- Drawer Header -->
-            <div class="p-4 border-b border-[var(--node-border)] flex items-center justify-between bg-[var(--tab-bar-bg)]">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
-                  S
-                </div>
-                <div class="flex flex-col">
-                  <span class="font-bold text-xs">SchemaCraft Menu</span>
-                  <span class="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full" :class="isDirty ? 'bg-amber-400' : 'bg-emerald-400'" />
-                    {{ fileName }}
-                  </span>
-                </div>
+        <!-- Sliding Drawer Panel -->
+        <div
+          class="relative ml-auto w-4/5 max-w-xs bg-[var(--header-bg)] border-l border-[var(--node-border)] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-200"
+        >
+          <!-- Drawer Top Bar -->
+          <div class="h-14 border-b border-[var(--node-border)] px-4 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-6 h-6 rounded bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold text-xs"
+              >
+                SC
               </div>
+              <span class="font-bold text-sm text-[var(--text-primary)]">SchemaCraft Menu</span>
+            </div>
+            <button
+              type="button"
+              @click="showMobileDrawer = false"
+              class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[var(--text-muted)] hover:text-white"
+            >
+              ✕
+            </button>
+          </div>
 
+          <!-- Drawer Body Content -->
+          <div class="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+            <!-- File Operations -->
+            <div class="space-y-1.5">
+              <span class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1">
+                Schema Operations
+              </span>
               <button
                 type="button"
-                @click="showMobileDrawer = false"
-                class="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-white hover:bg-white/10"
+                @click="handleMobileOpenSql"
+                class="w-full px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-left flex items-center gap-2.5 text-[var(--text-primary)] font-medium cursor-pointer"
               >
-                ✕
+                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+                <span>Open Schema File</span>
               </button>
             </div>
-
-            <!-- Drawer Body Items -->
-            <div class="p-4 space-y-5 flex-1 text-xs">
-              <!-- File Actions Section -->
-              <div class="space-y-1.5">
-                <span class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1">
-                  File & Workspace
-                </span>
-                <button
-                  type="button"
-                  @click="handleMobileOpenSql"
-                  class="w-full px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-left flex items-center gap-2.5 text-[var(--text-primary)] font-medium"
-                >
-                  <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                  </svg>
-                  <span>Open .SQL File</span>
-                </button>
-              </div>
 
               <!-- Export Options Section -->
               <div class="space-y-1.5">
@@ -494,7 +492,6 @@ function handleMobilePreset(id: string) {
             </div>
           </div>
         </div>
-      </div>
     </Teleport>
 
     <!-- Nitro Export Modal -->

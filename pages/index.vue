@@ -1,6 +1,7 @@
 <script setup lang="ts">
-const { sqlCode, parseSchemaOnServer } = useSchemaStore()
+const { sqlCode, parseSchema } = useSchemaStore()
 const { saveSqlFile } = useFileSystem()
+const { toggleConsole } = useEditorConsole()
 const {
   splitPercent,
   isDragging,
@@ -16,11 +17,16 @@ function handleGlobalKeydown(e: KeyboardEvent) {
     e.preventDefault()
     saveSqlFile(false)
   }
+  // Cmd + J or Ctrl + J toggles the VS Code style Error / Terminal Console
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+    e.preventDefault()
+    toggleConsole()
+  }
 }
 
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
-  parseSchemaOnServer(sqlCode.value)
+  parseSchema(sqlCode.value)
 })
 
 onBeforeUnmount(() => {
@@ -41,20 +47,20 @@ onBeforeUnmount(() => {
       class="flex-1 w-full min-h-0 flex overflow-hidden relative"
       :class="{ 'cursor-col-resize select-none': isDragging }"
     >
+      <!-- Drag Shield Overlay: Prevents Monaco & Canvas from capturing pointer events during drag -->
+      <div
+        v-if="isDragging"
+        class="absolute inset-0 z-50 cursor-col-resize select-none bg-transparent"
+      />
+
       <!-- LEFT PANE: Monaco Code Editor -->
       <section
-        class="h-full flex flex-col min-w-0 overflow-hidden bg-[var(--app-bg)] transition-[width] duration-0"
+        class="editor-pane h-full flex flex-col min-w-0 overflow-hidden bg-[var(--app-bg)] transition-[width] duration-0"
         :class="[
           'w-full md:w-auto',
           mobileView === 'editor' ? 'flex' : 'hidden md:flex',
+          isDragging ? 'pointer-events-none select-none' : '',
         ]"
-        :style="{
-          width: undefined, // Let CSS take over on mobile
-        }"
-        :style-desktop="{
-          width: `${splitPercent}%`,
-          minWidth: '200px',
-        }"
       >
         <div class="flex-1 w-full h-full min-h-0 relative">
           <features-editor-sql-editor />
@@ -63,12 +69,12 @@ onBeforeUnmount(() => {
 
       <!-- DRAGGABLE DIVIDER (Desktop Only: md:flex) -->
       <div
-        class="hidden md:flex w-2 hover:w-2 bg-[var(--tab-bar-bg)] hover:bg-blue-500/30 border-x border-[var(--node-border)] cursor-col-resize items-center justify-center relative group select-none shrink-0 transition-colors z-20"
+        class="hidden md:flex w-2 hover:w-2.5 bg-[var(--tab-bar-bg)] hover:bg-blue-500/30 border-x border-[var(--node-border)] cursor-col-resize items-center justify-center relative group select-none shrink-0 transition-all duration-150 z-20"
         :class="{ '!bg-blue-500 !border-blue-400': isDragging }"
         @mousedown="startDragging"
         @touchstart="startDragging"
         @dblclick="resetSplit"
-        title="Drag to resize panes (Double click to reset)"
+        title="Drag to resize panes (Double click to reset to 40%)"
       >
         <!-- Center Grip Dots -->
         <div class="flex flex-col gap-1 items-center justify-center opacity-40 group-hover:opacity-100 transition-opacity">
@@ -80,51 +86,51 @@ onBeforeUnmount(() => {
 
       <!-- RIGHT PANE: Vue Flow Diagram Canvas -->
       <section
-        class="h-full flex flex-col min-w-0 overflow-hidden bg-[var(--canvas-bg)] flex-1"
+        class="canvas-pane h-full flex flex-col min-w-0 overflow-hidden bg-[var(--canvas-bg)] flex-1"
         :class="[
           'w-full md:w-auto',
           mobileView === 'canvas' ? 'flex' : 'hidden md:flex',
+          isDragging ? 'pointer-events-none select-none' : '',
         ]"
-        :style-desktop="{
-          width: `${100 - splitPercent}%`,
-          minWidth: '200px',
-        }"
       >
         <features-canvas-diagram />
       </section>
     </main>
 
     <!-- MOBILE FLOATING VIEW TOGGLE BUTTON (Mobile/Tablet Only: md:hidden) -->
-    <div class="fixed bottom-9 right-4 z-40 md:hidden select-none">
+    <div class="fixed bottom-8 sm:bottom-9 right-3 sm:right-4 z-40 md:hidden select-none">
       <button
         type="button"
         @click="toggleMobileView"
-        class="flex items-center gap-2 px-4 py-2.5 rounded-full shadow-2xl font-bold text-xs text-white transition-all duration-200 active:scale-95 border border-white/20"
+        class="flex items-center gap-2 px-4 py-2.5 rounded-full shadow-2xl font-bold text-xs text-white transition-all duration-200 active:scale-95 border border-white/25 backdrop-blur-md touch-manipulation cursor-pointer"
         :class="[
           mobileView === 'editor'
-            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/30'
-            : 'bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/30',
+            ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 shadow-blue-500/40 ring-2 ring-blue-400/30'
+            : 'bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 shadow-emerald-500/40 ring-2 ring-emerald-400/30',
         ]"
       >
         <!-- Icon when in Editor view (Preview / Play icon) -->
         <template v-if="mobileView === 'editor'">
-          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3" />
+          <svg class="w-4 h-4 text-white shrink-0 fill-current" viewBox="0 0 24 24">
+            <polygon points="6 4 20 12 6 20 6 4" />
           </svg>
-          <span>Preview Diagram</span>
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping ml-0.5" />
+          <span class="tracking-wide font-semibold">Preview Diagram</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping ml-0.5 shrink-0" />
         </template>
 
         <!-- Icon when in Canvas view (Code / Edit icon) -->
         <template v-else>
-          <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg class="w-4 h-4 text-white shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <polyline points="16 18 22 12 16 6" />
             <polyline points="8 6 2 12 8 18" />
           </svg>
-          <span>Edit SQL</span>
+          <span class="tracking-wide font-semibold">Edit Schema</span>
         </template>
       </button>
     </div>
+
+    <!-- Integrated VS Code Style Error Terminal / Console Drawer -->
+    <features-editor-error-console />
 
     <!-- Bottom Status Bar (VS Code style) -->
     <shared-status-bar />
@@ -133,15 +139,15 @@ onBeforeUnmount(() => {
 
 <style scoped>
 @media (min-width: 768px) {
-  section:first-of-type {
+  section.editor-pane {
     width: v-bind('splitPercent + "%"') !important;
-    min-width: 200px;
-    max-width: calc(100% - 200px);
+    min-width: 220px;
+    max-width: calc(100% - 220px);
   }
-  section:last-of-type {
+  section.canvas-pane {
     width: v-bind('(100 - splitPercent) + "%"') !important;
-    min-width: 200px;
-    max-width: calc(100% - 200px);
+    min-width: 220px;
+    max-width: calc(100% - 220px);
   }
 }
 </style>

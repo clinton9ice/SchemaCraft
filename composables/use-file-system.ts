@@ -1,6 +1,25 @@
 import { toPng, toSvg, toJpeg } from 'html-to-image'
+import type { SupportedLanguage } from '~/composables/use-schema-store'
 
-let activeFileHandle: any = null
+export interface FilePickerTypeFilter {
+  description?: string
+  accept: Record<string, string[]>
+}
+
+export interface FilePickerOpenOptions {
+  types?: FilePickerTypeFilter[]
+  multiple?: boolean
+}
+
+export interface FilePickerSaveOptions {
+  suggestedName?: string
+  types?: FilePickerTypeFilter[]
+}
+
+interface WindowWithFileSystemApi extends Window {
+  showOpenFilePicker?: (options?: FilePickerOpenOptions) => Promise<FileSystemFileHandle[]>
+  showSaveFilePicker?: (options?: FilePickerSaveOptions) => Promise<FileSystemFileHandle>
+}
 
 export function useFileSystem() {
   const {
@@ -12,70 +31,103 @@ export function useFileSystem() {
     isDirty,
     addNewTab,
     setSqlCode,
-    parseSchemaOnServer,
+    parseSchema,
     detectLanguageFromCode,
   } = useSchemaStore()
 
   const isExportingImage = ref(false)
   const isSavingFile = ref(false)
 
-  // Open .sql, .dbml, or .prisma file using File System Access API
+  function detectLanguageForFile(targetFileName: string, text: string): SupportedLanguage {
+    const lower = targetFileName.toLowerCase()
+    if (lower.endsWith('.dbml')) return 'dbml'
+    if (lower.endsWith('.prisma')) return 'prisma'
+    if (lower.endsWith('.ts') || lower.endsWith('.js')) {
+      const detected = detectLanguageFromCode(text)
+      return detected === 'typeorm' || detected === 'drizzle' ? detected : 'drizzle'
+    }
+    return detectLanguageFromCode(text)
+  }
+
+  // Open .sql, .dbml, .prisma, or .ts (Drizzle/TypeORM) using File System Access API
   async function openSqlFile() {
     try {
-      if (typeof window !== 'undefined' && 'showOpenFilePicker' in window) {
-        const [handle] = await (window as any).showOpenFilePicker({
+      const win = typeof window !== 'undefined' ? (window as WindowWithFileSystemApi) : null
+      if (win && typeof win.showOpenFilePicker === 'function') {
+        const handles = await win.showOpenFilePicker({
           types: [
             {
-              description: 'Database Schema Files (*.sql, *.dbml, *.prisma, *.ddl)',
+              description: 'All Supported Schemas (*.sql, *.dbml, *.prisma, *.ts, *.ddl)',
               accept: {
-                'text/plain': ['.sql', '.dbml', '.prisma', '.ddl', '.pgsql', '.txt'],
+                'text/plain': ['.sql', '.dbml', '.prisma', '.ts', '.ddl', '.pgsql', '.txt'],
+              },
+            },
+            {
+              description: 'SQL Database Files (*.sql, *.ddl, *.pgsql)',
+              accept: {
+                'text/plain': ['.sql', '.ddl', '.pgsql'],
+              },
+            },
+            {
+              description: 'Prisma Schema Files (*.prisma)',
+              accept: {
+                'text/plain': ['.prisma'],
+              },
+            },
+            {
+              description: 'DBML Files (*.dbml)',
+              accept: {
+                'text/plain': ['.dbml'],
+              },
+            },
+            {
+              description: 'TypeScript ORM Schemas (*.ts)',
+              accept: {
+                'text/plain': ['.ts'],
               },
             },
           ],
           multiple: false,
         })
 
+        const handle = handles?.[0]
         if (!handle) return
 
-        activeFileHandle = handle
         const file = await handle.getFile()
         const text = await file.text()
         const targetFileName = file.name || 'schema.sql'
-        const detectedLang = targetFileName.endsWith('.dbml')
-          ? 'dbml'
-          : targetFileName.endsWith('.prisma')
-          ? 'prisma'
-          : detectLanguageFromCode(text)
+        const detectedLang = detectLanguageForFile(targetFileName, text)
 
         if (isDirty.value) {
           // If current tab has unsaved changes, open in a new tab
           addNewTab(targetFileName, text, detectedLang)
+          if (activeTab.value) {
+            activeTab.value.fileHandle = handle
+          }
         } else {
           fileName.value = targetFileName
           if (activeTab.value) {
             activeTab.value.language = detectedLang
+            activeTab.value.fileHandle = handle
           }
           setSqlCode(text)
           lastSavedCode.value = text
           lastSaveTimestamp.value = new Date()
-          await parseSchemaOnServer(text, detectedLang)
+          await parseSchema(text, detectedLang)
         }
       } else {
         // Fallback for browsers without File System Access API
         const input = document.createElement('input')
         input.type = 'file'
-        input.accept = '.sql,.dbml,.prisma,.ddl,.pgsql,.txt,text/plain'
-        input.onchange = async (e: any) => {
-          const file = e.target.files?.[0]
+        input.accept = '.sql,.dbml,.prisma,.ts,.ddl,.pgsql,.txt,text/plain'
+        input.onchange = async (e: Event) => {
+          const target = e.target as HTMLInputElement | null
+          const file = target?.files?.[0]
           if (!file) return
 
           const text = await file.text()
           const targetFileName = file.name || 'schema.sql'
-          const detectedLang = targetFileName.endsWith('.dbml')
-            ? 'dbml'
-            : targetFileName.endsWith('.prisma')
-            ? 'prisma'
-            : detectLanguageFromCode(text)
+          const detectedLang = detectLanguageForFile(targetFileName, text)
 
           if (isDirty.value) {
             addNewTab(targetFileName, text, detectedLang)
@@ -87,13 +139,13 @@ export function useFileSystem() {
             setSqlCode(text)
             lastSavedCode.value = text
             lastSaveTimestamp.value = new Date()
-            await parseSchemaOnServer(text, detectedLang)
+            await parseSchema(text, detectedLang)
           }
         }
         input.click()
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Failed to open schema file:', err)
       }
     }
@@ -104,43 +156,66 @@ export function useFileSystem() {
     isSavingFile.value = true
     try {
       const currentLang = activeTab.value?.language || 'sql'
-      const targetExt = currentLang === 'dbml' ? '.dbml' : currentLang === 'prisma' ? '.prisma' : '.sql'
-      const baseName = (fileName.value || 'schema').replace(/\.(sql|dbml|prisma|ddl|pgsql)$/i, '')
+      let targetExt = '.sql'
+      if (currentLang === 'dbml') targetExt = '.dbml'
+      else if (currentLang === 'prisma') targetExt = '.prisma'
+      else if (currentLang === 'drizzle' || currentLang === 'typeorm') targetExt = '.ts'
+
+      const baseName = (fileName.value || 'schema').replace(/\.(sql|dbml|prisma|ddl|pgsql|ts|txt)$/i, '')
       const suggestedFileName = `${baseName}${targetExt}`
 
-      if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
-        if (!activeFileHandle || forceSaveAs) {
-          activeFileHandle = await (window as any).showSaveFilePicker({
+      const win = typeof window !== 'undefined' ? (window as WindowWithFileSystemApi) : null
+      if (win && typeof win.showSaveFilePicker === 'function') {
+        let handle = activeTab.value?.fileHandle
+        if (!handle || forceSaveAs) {
+          const typeFilters: FilePickerTypeFilter[] = []
+          if (currentLang === 'prisma') {
+            typeFilters.push({
+              description: 'Prisma Schema File (*.prisma)',
+              accept: { 'text/plain': ['.prisma'] },
+            })
+          } else if (currentLang === 'dbml') {
+            typeFilters.push({
+              description: 'Database Markup Language (*.dbml)',
+              accept: { 'text/plain': ['.dbml'] },
+            })
+          } else if (currentLang === 'drizzle') {
+            typeFilters.push({
+              description: 'Drizzle ORM Schema (*.ts)',
+              accept: { 'text/plain': ['.ts'] },
+            })
+          } else if (currentLang === 'typeorm') {
+            typeFilters.push({
+              description: 'TypeORM Entity File (*.ts)',
+              accept: { 'text/plain': ['.ts'] },
+            })
+          } else {
+            typeFilters.push({
+              description: 'SQL Database File (*.sql)',
+              accept: { 'text/plain': ['.sql', '.ddl', '.pgsql'] },
+            })
+          }
+
+          handle = await win.showSaveFilePicker({
             suggestedName: suggestedFileName,
-            types: [
-              currentLang === 'prisma'
-                ? {
-                    description: 'Prisma Schema File (*.prisma)',
-                    accept: { 'text/plain': ['.prisma'] },
-                  }
-                : currentLang === 'dbml'
-                ? {
-                    description: 'Database Markup Language (*.dbml)',
-                    accept: { 'text/plain': ['.dbml'] },
-                  }
-                : {
-                    description: 'SQL Database File (*.sql)',
-                    accept: { 'text/plain': ['.sql', '.ddl'] },
-                  },
-            ],
+            types: typeFilters,
           })
+
+          if (activeTab.value && handle) {
+            activeTab.value.fileHandle = handle
+          }
         }
 
-        if (activeFileHandle) {
-          const writable = await activeFileHandle.createWritable()
+        if (handle) {
+          const writable = await handle.createWritable()
           await writable.write(sqlCode.value)
           await writable.close()
 
-          const file = await activeFileHandle.getFile()
+          const file = await handle.getFile()
           fileName.value = file.name || suggestedFileName
           lastSavedCode.value = sqlCode.value
           lastSaveTimestamp.value = new Date()
-          await parseSchemaOnServer(sqlCode.value, currentLang)
+          await parseSchema(sqlCode.value, currentLang)
         }
       } else {
         // Fallback Blob Download
@@ -154,10 +229,10 @@ export function useFileSystem() {
 
         lastSavedCode.value = sqlCode.value
         lastSaveTimestamp.value = new Date()
-        await parseSchemaOnServer(sqlCode.value, currentLang)
+        await parseSchema(sqlCode.value, currentLang)
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name !== 'AbortError') {
         console.error('Failed to save file:', err)
       }
     } finally {
@@ -165,7 +240,7 @@ export function useFileSystem() {
     }
   }
 
-  // Export diagram viewport as high-res PNG / SVG / JPEG
+  // Export diagram viewport as high-res PNG / SVG / JPEG with active theme background
   async function exportDiagramAsImage(
     format: 'png' | 'svg' | 'jpeg' = 'png',
     options: { quality?: number; scale?: number } = {}
@@ -186,9 +261,13 @@ export function useFileSystem() {
       const baseFileName = (fileName.value || 'schema').replace(/\.[^/.]+$/, '')
       const exportName = `${baseFileName}-diagram-${timestamp}.${format}`
 
+      const activeBg = typeof window !== 'undefined'
+        ? getComputedStyle(document.documentElement).getPropertyValue('--canvas-bg').trim() || '#1e1f1c'
+        : '#1e1f1c'
+
       let dataUrl = ''
       const config = {
-        backgroundColor: '#0b0f17',
+        backgroundColor: activeBg,
         pixelRatio: scale,
         quality: format === 'jpeg' ? quality : undefined,
         style: {
@@ -211,7 +290,7 @@ export function useFileSystem() {
       link.click()
 
       return true
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Exporting diagram image failed:', err)
       return false
     } finally {
