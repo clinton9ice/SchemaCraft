@@ -6,8 +6,8 @@ const { currentTheme, showThemeModal, activeThemeDef, setTheme } = useThemeEngin
 const selectedCategory = ref<'dark' | 'light'>('dark')
 
 // Filter themes by category
-const darkThemes = computed(() => THEME_LIST.filter((t) => t.category === 'dark'))
-const lightThemes = computed(() => THEME_LIST.filter((t) => t.category === 'light'))
+const darkThemes = computed(() => THEME_LIST.filter(t => t.category === 'dark'))
+const lightThemes = computed(() => THEME_LIST.filter(t => t.category === 'light'))
 
 function selectTheme(themeId: ThemeId) {
   setTheme(themeId)
@@ -15,7 +15,7 @@ function selectTheme(themeId: ThemeId) {
 </script>
 
 <template>
-  <Teleport to="body">
+  <teleport to="body">
     <div
       v-if="showThemeModal"
       class="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 select-none"
@@ -25,10 +25,20 @@ function selectTheme(themeId: ThemeId) {
         class="w-full max-w-xl bg-[var(--header-bg)] border border-[var(--node-border)] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150 text-[var(--text-primary)]"
       >
         <!-- Modal Header -->
-        <div class="h-14 border-b border-[var(--node-border)] px-5 flex items-center justify-between">
+        <div
+          class="h-14 border-b border-[var(--node-border)] px-5 flex items-center justify-between"
+        >
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-pink-500 to-indigo-500 flex items-center justify-center text-white">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div
+              class="w-8 h-8 rounded-lg bg-gradient-to-tr from-pink-500 to-indigo-500 flex items-center justify-center text-white"
+            >
+              <svg
+                class="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <circle cx="12" cy="12" r="4" />
                 <path d="M12 2v2" />
                 <path d="M12 20v2" />
@@ -42,32 +52,42 @@ function selectTheme(themeId: ThemeId) {
             </div>
             <div>
               <span class="font-bold text-sm block">Theme Settings</span>
-              <span class="text-[11px] text-[var(--text-muted)] font-mono">Monaco Editor & UI Color Suite</span>
+              <span class="text-[11px] text-[var(--text-muted)] font-mono"
+                >Monaco Editor & UI Color Suite</span
+              >
             </div>
           </div>
 
           <button
             type="button"
-            @click="showThemeModal = false"
             class="w-7 h-7 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
+            @click="showThemeModal = false"
           >
             ✕
           </button>
         </div>
 
         <!-- Category Selector (Dark Suite vs Light) -->
-        <div class="px-5 pt-4 pb-2 border-b border-[var(--node-border)] flex items-center gap-2 bg-[var(--tab-bar-bg)]">
+        <div
+          class="px-5 pt-4 pb-2 border-b border-[var(--node-border)] flex items-center gap-2 bg-[var(--tab-bar-bg)]"
+        >
           <button
             type="button"
-            @click="selectedCategory = 'dark'"
             class="px-4 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
             :class="[
               selectedCategory === 'dark'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-white/5 text-[var(--text-muted)] hover:text-white hover:bg-white/10',
             ]"
+            @click="selectedCategory = 'dark'"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
             <span>Dark Theme Suite (4)</span>
@@ -75,15 +95,21 @@ function selectTheme(themeId: ThemeId) {
 
           <button
             type="button"
-            @click="selectedCategory = 'light'"
             class="px-4 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
             :class="[
               selectedCategory === 'light'
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'bg-white/5 text-[var(--text-muted)] hover:text-white hover:bg-white/10',
             ]"
+            @click="selectedCategory = 'light'"
           >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="5" />
               <line x1="12" y1="1" x2="12" y2="3" />
               <line x1="12" y1="21" x2="12" y2="23" />
@@ -141,7 +167,11 @@ function selectTheme(themeId: ThemeId) {
 
               <!-- Color Palette Swatches Preview -->
               <div class="flex items-center gap-1.5 pt-2 border-t border-white/10">
-                <span class="w-4 h-4 rounded-full border border-black/40" :style="{ backgroundColor: theme.accentColor }" :title="`Accent: ${theme.accentColor}`" />
+                <span
+                  class="w-4 h-4 rounded-full border border-black/40"
+                  :style="{ backgroundColor: theme.accentColor }"
+                  :title="`Accent: ${theme.accentColor}`"
+                />
                 <span v-if="theme.id === 'monokai'" class="flex items-center gap-1">
                   <span class="w-3.5 h-3.5 rounded-full bg-[#f92672]" title="Pink" />
                   <span class="w-3.5 h-3.5 rounded-full bg-[#e6db74]" title="Yellow" />
@@ -199,19 +229,24 @@ function selectTheme(themeId: ThemeId) {
         </div>
 
         <!-- Modal Footer -->
-        <div class="h-12 border-t border-[var(--node-border)] px-5 flex items-center justify-between bg-[var(--tab-bar-bg)]">
+        <div
+          class="h-12 border-t border-[var(--node-border)] px-5 flex items-center justify-between bg-[var(--tab-bar-bg)]"
+        >
           <span class="text-[11px] text-[var(--text-muted)] font-mono">
-            Active Theme: <span class="text-[var(--text-primary)] font-bold">{{ activeThemeDef?.name || 'Midnight Slate' }}</span>
+            Active Theme:
+            <span class="text-[var(--text-primary)] font-bold">{{
+              activeThemeDef?.name || 'Midnight Slate'
+            }}</span>
           </span>
           <button
             type="button"
-            @click="showThemeModal = false"
             class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            @click="showThemeModal = false"
           >
             Apply & Close
           </button>
         </div>
       </div>
     </div>
-  </Teleport>
+  </teleport>
 </template>

@@ -1,21 +1,24 @@
-import pgQuery from 'pg-query-emscripten'
+import pgQuery, { type PgQueryParser } from 'pg-query-emscripten'
 import { compilePgAst } from '~/utils/sql-compiler'
 import { parseDbml, validateDbmlCode } from '~/utils/dbml-compiler'
 import { parsePrisma, validatePrismaCode } from '~/utils/prisma-compiler'
 import { compileTypeORM } from '~/utils/typeorm-compiler'
 import { compileDrizzle } from '~/utils/drizzle-compiler'
 
-let parserInstance: any = null
+let parserInstance: PgQueryParser | null = null
 
-async function getParser() {
+async function getParser(): Promise<PgQueryParser> {
   if (parserInstance) return parserInstance
-  const init = pgQuery.default || pgQuery
-  parserInstance = typeof init === 'function' ? await init() : init
+  const init = (pgQuery as unknown as { default?: () => Promise<PgQueryParser> }).default || pgQuery
+  parserInstance = typeof init === 'function' ? await init() : (init as PgQueryParser)
   return parserInstance
 }
 
-export default defineEventHandler(async (event) => {
-  const body = await readBody<{ sql?: string; language?: 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle' }>(event)
+export default defineEventHandler(async event => {
+  const body = await readBody<{
+    sql?: string
+    language?: 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
+  }>(event)
   const code = body?.sql || ''
   const language = body?.language || 'sql'
 
@@ -29,7 +32,10 @@ export default defineEventHandler(async (event) => {
   }
 
   // Handle Drizzle Parser
-  if (language === 'drizzle' || /\b(?:pgTable|mysqlTable|sqliteTable)\s*\(|from\s+['"]drizzle-orm/im.test(code)) {
+  if (
+    language === 'drizzle' ||
+    /\b(?:pgTable|mysqlTable|sqliteTable)\s*\(|from\s+['"]drizzle-orm/im.test(code)
+  ) {
     try {
       const compiled = compileDrizzle(code)
       return {
@@ -59,12 +65,13 @@ export default defineEventHandler(async (event) => {
         relations: compiled.relations,
         error: null,
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'TypeORM parsing error'
       return {
         success: false,
         tables: [],
         relations: [],
-        error: { message: err?.message || 'TypeORM parsing error', lineNumber: 1, column: 1 },
+        error: { message: msg, lineNumber: 1, column: 1 },
       }
     }
   }
@@ -89,12 +96,13 @@ export default defineEventHandler(async (event) => {
         relations: compiled.relations,
         error: null,
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Prisma parsing error'
       return {
         success: false,
         tables: [],
         relations: [],
-        error: { message: err?.message || 'Prisma parsing error', lineNumber: 1, column: 1 },
+        error: { message: msg, lineNumber: 1, column: 1 },
       }
     }
   }
@@ -119,12 +127,13 @@ export default defineEventHandler(async (event) => {
         relations: compiled.relations,
         error: null,
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'DBML parsing error'
       return {
         success: false,
         tables: [],
         relations: [],
-        error: { message: err?.message || 'DBML parsing error', lineNumber: 1, column: 1 },
+        error: { message: msg, lineNumber: 1, column: 1 },
       }
     }
   }
@@ -144,7 +153,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Compile AST into diagram data structure
-    const compiled = compilePgAst(result.parse_tree)
+    const compiled = compilePgAst(result.parse_tree || [])
 
     return {
       success: true,
@@ -152,12 +161,13 @@ export default defineEventHandler(async (event) => {
       relations: compiled.relations,
       error: null,
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'SQL parsing error'
     return {
       success: false,
       tables: [],
       relations: [],
-      error: { message: err?.message || 'SQL parsing error' },
+      error: { message: msg },
     }
   }
 })

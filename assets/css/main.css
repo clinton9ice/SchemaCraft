@@ -8,7 +8,8 @@
 
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans:
+      'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, Monaco, Consolas, monospace;
 
     /* Default Midnight Dark Variables */
@@ -28,7 +29,7 @@
   }
 
   /* Monokai Dark Theme Suite */
-  [data-theme="monokai"] {
+  [data-theme='monokai'] {
     --app-bg: #272822;
     --header-bg: #1e1f1c;
     --tab-bar-bg: #1e1f1c;
@@ -45,7 +46,7 @@
   }
 
   /* Dracula Theme */
-  [data-theme="dracula"] {
+  [data-theme='dracula'] {
     --app-bg: #282a36;
     --header-bg: #1e1f29;
     --tab-bar-bg: #21222c;
@@ -62,7 +63,7 @@
   }
 
   /* Nordic Theme */
-  [data-theme="nord"] {
+  [data-theme='nord'] {
     --app-bg: #2e3440;
     --header-bg: #242933;
     --tab-bar-bg: #242933;
@@ -79,7 +80,7 @@
   }
 
   /* Light Theme */
-  [data-theme="light"],
+  [data-theme='light'],
   .light {
     --app-bg: #f8fafc;
     --header-bg: #ffffff;
@@ -96,7 +97,8 @@
     --text-muted: #64748b;
   }
 
-  html, body {
+  html,
+  body {
     height: 100%;
     margin: 0;
     padding: 0;
@@ -108,7 +110,9 @@
     -moz-osx-font-smoothing: grayscale;
     -webkit-user-select: none;
     user-select: none;
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
   }
 
   #__nuxt {
@@ -170,7 +174,9 @@
   border: 2px solid var(--node-border) !important;
   border-radius: 9999px !important;
   opacity: 0.9;
-  transition: opacity 0.15s, transform 0.15s;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
 }
 
 .vue-flow__handle:hover {

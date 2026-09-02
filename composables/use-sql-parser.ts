@@ -42,6 +42,6 @@ export const useSqlParser = () => {
     schema,
     error,
     isParsing,
-    parseSql
+    parseSql,
   }
 }

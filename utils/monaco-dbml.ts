@@ -4,7 +4,7 @@ import type * as monacoType from 'monaco-editor'
  * Registers DBML (Database Markup Language) language syntax highlighting in Monaco Editor
  */
 export function registerDbmlLanguage(monaco: typeof monacoType) {
-  if (monaco.languages.getLanguages().some((l) => l.id === 'dbml')) {
+  if (monaco.languages.getLanguages().some(l => l.id === 'dbml')) {
     return
   }
 
@@ -97,16 +97,16 @@ export function registerDbmlLanguage(monaco: typeof monacoType) {
         ],
 
         // Delimiters & operators
-        [/[{}()\[\]]/, '@brackets'],
-        [/[><\-:]/, 'operator'],
+        [/[{}[\]()]/, '@brackets'],
+        [/[><:-]/, 'operator'],
         [/\d+/, 'number'],
       ],
 
       comment: [
-        [/[^\/*]+/, 'comment'],
+        [/[^/*]+/, 'comment'],
         [/\/\*/, 'comment', '@push'],
-        ["\\*/", 'comment', '@pop'],
-        [/[\/*]/, 'comment'],
+        ['\\*/', 'comment', '@pop'],
+        [/[/*]/, 'comment'],
       ],
     },
   })

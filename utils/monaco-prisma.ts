@@ -4,21 +4,14 @@ import type * as monacoType from 'monaco-editor'
  * Registers Prisma Schema language syntax highlighting in Monaco Editor
  */
 export function registerPrismaLanguage(monaco: typeof monacoType) {
-  if (monaco.languages.getLanguages().some((l) => l.id === 'prisma')) {
+  if (monaco.languages.getLanguages().some(l => l.id === 'prisma')) {
     return
   }
 
   monaco.languages.register({ id: 'prisma' })
 
   monaco.languages.setMonarchTokensProvider('prisma', {
-    keywords: [
-      'datasource',
-      'generator',
-      'model',
-      'enum',
-      'type',
-      'view',
-    ],
+    keywords: ['datasource', 'generator', 'model', 'enum', 'type', 'view'],
 
     typeKeywords: [
       'Int',
@@ -84,7 +77,7 @@ export function registerPrismaLanguage(monaco: typeof monacoType) {
         ],
 
         // Delimiters & operators
-        [/[{}()\[\]]/, '@brackets'],
+        [/[{}[\]()]/, '@brackets'],
         [/[=?:,]/, 'delimiter'],
         [/\d+/, 'number'],
       ],

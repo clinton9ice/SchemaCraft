@@ -150,11 +150,11 @@ const showThemeModal = ref(false)
 
 export function useThemeEngine() {
   const activeThemeDef = computed(() => {
-    return THEME_LIST.find((t) => t.id === currentTheme.value) || THEME_LIST[0]
+    return THEME_LIST.find(t => t.id === currentTheme.value) || THEME_LIST[0]
   })
 
   function setTheme(themeId: ThemeId) {
-    const target = THEME_LIST.find((t) => t.id === themeId)
+    const target = THEME_LIST.find(t => t.id === themeId)
     if (!target) return
 
     currentTheme.value = themeId
@@ -178,7 +178,7 @@ export function useThemeEngine() {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('schemacraft-theme') as ThemeId | null
-        if (saved && THEME_LIST.some((t) => t.id === saved)) {
+        if (saved && THEME_LIST.some(t => t.id === saved)) {
           setTheme(saved)
         } else {
           setTheme('dark')

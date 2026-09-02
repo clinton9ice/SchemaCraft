@@ -22,7 +22,7 @@ describe('useSplitPane Composable', () => {
     toggleMobileView()
     expect(mobileView.value).toBe('canvas')
 
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await new Promise(resolve => setTimeout(resolve, 60))
     expect(dispatchSpy).toHaveBeenCalled()
 
     toggleMobileView()

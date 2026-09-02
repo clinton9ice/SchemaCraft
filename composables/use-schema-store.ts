@@ -1,7 +1,7 @@
 import type { CompiledTable, CompiledRelation } from '~/utils/sql-compiler'
 import { parseDbml, tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { parsePrisma, tablesToPrisma, prismaToSql } from '~/utils/prisma-compiler'
-import { compileTypeORM, tablesToTypeORM, typeormToSql, typeormToDbml, typeormToPrisma } from '~/utils/typeorm-compiler'
+import { compileTypeORM, tablesToTypeORM, typeormToSql } from '~/utils/typeorm-compiler'
 import { compileDrizzle, tablesToDrizzle, drizzleToSql } from '~/utils/drizzle-compiler'
 
 export type SupportedLanguage = 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
@@ -80,15 +80,23 @@ export function detectLanguageFromCode(code: string): SupportedLanguage {
     return 'drizzle'
   }
 
-  if (/@Entity\b|from\s+['"]typeorm['"]|@PrimaryGeneratedColumn|@PrimaryColumn|@Column\b/im.test(trimmed)) {
+  if (
+    /@Entity\b|from\s+['"]typeorm['"]|@PrimaryGeneratedColumn|@PrimaryColumn|@Column\b/im.test(
+      trimmed
+    )
+  ) {
     return 'typeorm'
   }
 
-  if (/^\s*(?:model\s+[a-zA-Z0-9_]+\s*\{|datasource\s+\w+\s*\{|generator\s+\w+\s*\{)/im.test(trimmed)) {
+  if (
+    /^\s*(?:model\s+[a-zA-Z0-9_]+\s*\{|datasource\s+\w+\s*\{|generator\s+\w+\s*\{)/im.test(trimmed)
+  ) {
     return 'prisma'
   }
 
-  if (/^\s*(?:Table\s+[\w"]+|Ref(?:\s+[\w_]+)?\s*:|Enum\s+[\w"]+|TableGroup\s+[\w"]+)/im.test(trimmed)) {
+  if (
+    /^\s*(?:Table\s+[\w"]+|Ref(?:\s+[\w_]+)?\s*:|Enum\s+[\w"]+|TableGroup\s+[\w"]+)/im.test(trimmed)
+  ) {
     return 'dbml'
   }
 
@@ -184,13 +192,19 @@ const isSaving = ref(false)
 const lastSaveTimestamp = ref<Date | null>(new Date())
 const isParsing = ref(false)
 const availablePresets = ref<
-  Array<{ id: string; label: string; description: string; sql: string; language?: SupportedLanguage }>
+  Array<{
+    id: string
+    label: string
+    description: string
+    sql: string
+    language?: SupportedLanguage
+  }>
 >([])
 
 export function useSchemaStore() {
   // Currently active tab
   const activeTab = computed(() => {
-    return tabs.value.find((t) => t.id === activeTabId.value) || tabs.value[0]
+    return tabs.value.find(t => t.id === activeTabId.value) || tabs.value[0]
   })
 
   // Current language (auto-detected fallback if undefined)
@@ -259,7 +273,7 @@ export function useSchemaStore() {
   function addNewTab(title?: string, initialContent?: string, language?: SupportedLanguage) {
     const isExplicitContent = typeof initialContent === 'string'
     const defaultNewTabSql = `-- SQL Schema\n\nCREATE TABLE new_table (\n    id INT PRIMARY KEY,\n    name VARCHAR(100) NOT NULL,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n`
-    
+
     const content = isExplicitContent ? initialContent : defaultNewTabSql
     const lang = language || detectLanguageFromCode(content)
     const ext = lang === 'dbml' ? '.dbml' : lang === 'prisma' ? '.prisma' : '.sql'
@@ -289,7 +303,7 @@ export function useSchemaStore() {
       return
     }
 
-    const index = tabs.value.findIndex((t) => t.id === tabId)
+    const index = tabs.value.findIndex(t => t.id === tabId)
     if (index === -1) return
 
     tabs.value.splice(index, 1)
@@ -301,14 +315,14 @@ export function useSchemaStore() {
   }
 
   function switchTab(tabId: string) {
-    const exists = tabs.value.some((t) => t.id === tabId)
+    const exists = tabs.value.some(t => t.id === tabId)
     if (exists) {
       activeTabId.value = tabId
     }
   }
 
   function renameTab(tabId: string, newTitle: string) {
-    const tab = tabs.value.find((t) => t.id === tabId)
+    const tab = tabs.value.find(t => t.id === tabId)
     if (tab) {
       tab.title = newTitle
       tab.fileName = newTitle
@@ -332,7 +346,14 @@ export function useSchemaStore() {
     // Adjust file extension
     const currentName = activeTab.value.fileName
     const baseName = currentName.replace(/\.(sql|ddl|pgsql|dbml|prisma|ts)$/i, '')
-    const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : (targetLang === 'typeorm' || targetLang === 'drizzle') ? '.ts' : '.sql'
+    const targetExt =
+      targetLang === 'dbml'
+        ? '.dbml'
+        : targetLang === 'prisma'
+          ? '.prisma'
+          : targetLang === 'typeorm' || targetLang === 'drizzle'
+            ? '.ts'
+            : '.sql'
     activeTab.value.fileName = `${baseName}${targetExt}`
     activeTab.value.title = `${baseName}${targetExt}`
 
@@ -436,13 +457,29 @@ export function useSchemaStore() {
         sourceTab.parsedRelations
       )
 
-      const baseName = (sourceTab.fileName || 'schema').replace(/\.(sql|ddl|pgsql|dbml|prisma|ts)$/i, '')
-      const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : (targetLang === 'typeorm' || targetLang === 'drizzle') ? '.ts' : '.sql'
+      const baseName = (sourceTab.fileName || 'schema').replace(
+        /\.(sql|ddl|pgsql|dbml|prisma|ts)$/i,
+        ''
+      )
+      const targetExt =
+        targetLang === 'dbml'
+          ? '.dbml'
+          : targetLang === 'prisma'
+            ? '.prisma'
+            : targetLang === 'typeorm' || targetLang === 'drizzle'
+              ? '.ts'
+              : '.sql'
 
       let targetTitle = `${baseName}${targetExt}`
-      if (tabs.value.some((t) => t.title === targetTitle || t.fileName === targetTitle)) {
+      if (tabs.value.some(t => t.title === targetTitle || t.fileName === targetTitle)) {
         let counter = 1
-        while (tabs.value.some((t) => t.title === `${baseName}-${counter}${targetExt}` || t.fileName === `${baseName}-${counter}${targetExt}`)) {
+        while (
+          tabs.value.some(
+            t =>
+              t.title === `${baseName}-${counter}${targetExt}` ||
+              t.fileName === `${baseName}-${counter}${targetExt}`
+          )
+        ) {
           counter++
         }
         targetTitle = `${baseName}-${counter}${targetExt}`
@@ -480,7 +517,13 @@ export function useSchemaStore() {
   async function fetchPresets() {
     try {
       const presets = await $fetch<
-        Array<{ id: string; label: string; description: string; sql: string; language?: SupportedLanguage }>
+        Array<{
+          id: string
+          label: string
+          description: string
+          sql: string
+          language?: SupportedLanguage
+        }>
       >('/api/schema/samples')
       if (presets && presets.length) {
         availablePresets.value = presets
@@ -495,7 +538,7 @@ export function useSchemaStore() {
     if (!activeTab.value) return
 
     const targetTabId = activeTabId.value
-    const targetTab = tabs.value.find((t) => t.id === targetTabId)
+    const targetTab = tabs.value.find(t => t.id === targetTabId)
     if (!targetTab) return
 
     const language = langOverride || targetTab.language || detectLanguageFromCode(code)
@@ -552,7 +595,7 @@ export function useSchemaStore() {
   }
 
   function loadSample(sampleId: string) {
-    const found = availablePresets.value.find((p) => p.id === sampleId)
+    const found = availablePresets.value.find(p => p.id === sampleId)
     if (found) {
       if (activeTab.value) {
         const lang: SupportedLanguage =
@@ -560,8 +603,8 @@ export function useSchemaStore() {
           (found.id === 'prisma-saas' || found.id.includes('prisma')
             ? 'prisma'
             : found.id === 'dbml-social' || found.id.includes('dbml')
-            ? 'dbml'
-            : 'sql')
+              ? 'dbml'
+              : 'sql')
         const ext = lang === 'dbml' ? '.dbml' : lang === 'prisma' ? '.prisma' : '.sql'
         activeTab.value.title = `${found.id}${ext}`
         activeTab.value.fileName = `${found.id}${ext}`
@@ -573,9 +616,7 @@ export function useSchemaStore() {
     }
   }
 
-  async function exportSchema(
-    format: 'typescript' | 'prisma' | 'dbml' | 'json',
-  ) {
+  async function exportSchema(format: 'typescript' | 'prisma' | 'dbml' | 'json') {
     try {
       const res = await $fetch<{
         success: boolean

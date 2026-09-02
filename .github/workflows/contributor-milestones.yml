@@ -1,0 +1,53 @@
+name: Contributor Milestone Tracker
+
+on:
+  pull_request_target:
+    types: [closed]
+
+permissions:
+  pull-requests: write
+  issues: write
+  contents: read
+
+jobs:
+  track-milestones:
+    name: Contributor Milestone Tracker
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Track Contributions and Congratulate Milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              per_page: 100,
+            });
+
+            const mergedCount = prs.filter(
+              p => p.user && p.user.login === author && p.merged_at
+            ).length;
+
+            if (mergedCount === 10) {
+              const congratulatoryMessage = [
+                '## 🏆 Outstanding Milestone Reached! 🌟',
+                '',
+                `Huge congratulations to @${author} on reaching **10 merged contributions** to **SchemaCraft**! 🎊🚀`,
+                '',
+                'Your consistent dedication, craftsmanship, and code quality have made a tremendous impact on Postgres Visual Architect. Thank you for being such an extraordinary pillar of our open-source community! 💎✨',
+                '',
+                '*Badge Unlocked: Veteran Contributor (Level 10)* 🎖️',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: congratulatoryMessage,
+              });
+            }

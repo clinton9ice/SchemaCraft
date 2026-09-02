@@ -1,0 +1,49 @@
+name: Contributor Welcome Bot
+
+on:
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  welcome-first-time-contributor:
+    name: Welcome First-Time Contributor
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome First-Time Contributor
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+            const authorAssociation = pr.author_association;
+
+            const isFirstTime =
+              authorAssociation === 'FIRST_TIME_CONTRIBUTOR' ||
+              authorAssociation === 'NONE' ||
+              authorAssociation === 'FIRST_TIMER';
+
+            if (isFirstTime) {
+              const welcomeMessage = [
+                `### 👋 Welcome to SchemaCraft, @${author}! 🎉`,
+                '',
+                'Thank you so much for opening your first pull request! We are thrilled to have you contribute to **SchemaCraft (Postgres Visual Architect)**. 🚀',
+                '',
+                'Our automated CI suite will run checks on formatting, strict linting rules, and unit tests. In the meantime, here are a few quick tips:',
+                `- 📖 Review our [Coding Standards](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/develop/CODING_STANDARDS.md) for architectural guidelines.`,
+                '- 🎨 Ensure your components follow strict `kebab-case` formatting and zero `any` policy.',
+                '- 💬 If you have questions or need assistance, feel free to tag the maintainers here!',
+                '',
+                'Thank you for helping make SchemaCraft better for developers everywhere! ✨',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: welcomeMessage,
+              });
+            }

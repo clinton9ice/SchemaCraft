@@ -17,11 +17,11 @@ const props = defineProps<{
 
 // Calculate table stats
 const primaryKeysCount = computed(() => {
-  return (props.data?.columns || []).filter((c) => c.isPrimaryKey).length
+  return (props.data?.columns || []).filter(c => c.isPrimaryKey).length
 })
 
 const foreignKeysCount = computed(() => {
-  return (props.data?.columns || []).filter((c) => c.isForeignKey).length
+  return (props.data?.columns || []).filter(c => c.isForeignKey).length
 })
 
 // Check if column has additional metadata / conditions / comments
@@ -96,7 +96,13 @@ function onRowMouseLeave() {
         <div
           class="w-5 h-5 rounded bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0"
         >
-          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg
+            class="w-3 h-3"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <path d="M3 9h18" />
             <path d="M9 21V9" />
@@ -127,7 +133,9 @@ function onRowMouseLeave() {
     </div>
 
     <!-- Column Rows List -->
-    <div class="divide-y divide-[var(--node-border)] bg-[var(--node-bg)] rounded-b-xl overflow-visible">
+    <div
+      class="divide-y divide-[var(--node-border)] bg-[var(--node-bg)] rounded-b-xl overflow-visible"
+    >
       <div
         v-for="col in data.columns"
         :key="col.name"
@@ -136,7 +144,7 @@ function onRowMouseLeave() {
         @mouseleave="onRowMouseLeave"
       >
         <!-- Target Handle (Left anchor for incoming foreign key references) -->
-        <Handle
+        <handle
           :id="`${data.name}.${col.name}-target`"
           type="target"
           :position="Position.Left"
@@ -158,7 +166,13 @@ function onRowMouseLeave() {
               </svg>
             </span>
             <span v-else-if="col.isForeignKey" class="text-sky-400 shrink-0" title="Foreign Key">
-              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                class="w-3 h-3"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
               </svg>
@@ -228,13 +242,15 @@ function onRowMouseLeave() {
               >
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
-              <span v-else class="text-[9px] leading-none text-[var(--text-muted)] font-mono">⋯</span>
+              <span v-else class="text-[9px] leading-none text-[var(--text-muted)] font-mono"
+                >⋯</span
+              >
             </span>
           </div>
         </div>
 
         <!-- Source Handle (Right anchor for outgoing foreign key references) -->
-        <Handle
+        <handle
           :id="`${data.name}.${col.name}-source`"
           type="source"
           :position="Position.Right"
@@ -253,8 +269,8 @@ function onRowMouseLeave() {
     </div>
 
     <!-- TELEPORTED UNCLIPPED HOVER DETAILS POPOVER -->
-    <Teleport to="body">
-      <Transition
+    <teleport to="body">
+      <transition
         enter-active-class="transition duration-150 ease-out"
         enter-from-class="opacity-0 translate-y-1 scale-95"
         enter-to-class="opacity-100 translate-y-0 scale-100"
@@ -271,21 +287,38 @@ function onRowMouseLeave() {
           }"
         >
           <!-- Header: Table & Column Name & Data Type -->
-          <div class="flex items-center justify-between gap-2 border-b border-[var(--node-border)] pb-2 mb-2">
+          <div
+            class="flex items-center justify-between gap-2 border-b border-[var(--node-border)] pb-2 mb-2"
+          >
             <div class="flex items-center gap-1.5 min-w-0">
               <span class="text-[var(--text-muted)] font-mono text-[11px]">{{ data.name }}.</span>
-              <span class="font-bold text-[var(--text-primary)] text-sm truncate">{{ hoveredCol.name }}</span>
+              <span class="font-bold text-[var(--text-primary)] text-sm truncate">{{
+                hoveredCol.name
+              }}</span>
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-sky-950/80 text-sky-300 border border-sky-800/50 shrink-0">
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-sky-950/80 text-sky-300 border border-sky-800/50 shrink-0"
+            >
               {{ hoveredCol.type }}
             </span>
           </div>
 
           <div class="space-y-2.5">
             <!-- SQL Documentation Note / Comment -->
-            <div v-if="hoveredCol.comment" class="bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg p-2 leading-relaxed">
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-0.5 flex items-center gap-1">
-                <svg class="w-3 h-3 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <div
+              v-if="hoveredCol.comment"
+              class="bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg p-2 leading-relaxed"
+            >
+              <div
+                class="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-0.5 flex items-center gap-1"
+              >
+                <svg
+                  class="w-3 h-3 text-neutral-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
                 <span>Documentation Note</span>
@@ -298,8 +331,16 @@ function onRowMouseLeave() {
               v-if="hoveredCol.checkCondition"
               class="bg-amber-950/40 border border-amber-800/50 rounded-lg p-2 leading-relaxed"
             >
-              <div class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-0.5 flex items-center gap-1">
-                <svg class="w-3 h-3 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <div
+                class="text-[10px] font-semibold uppercase tracking-wider text-amber-400 mb-0.5 flex items-center gap-1"
+              >
+                <svg
+                  class="w-3 h-3 text-amber-400"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
@@ -309,20 +350,29 @@ function onRowMouseLeave() {
               <p class="text-amber-200 font-medium text-[11px] mb-1">
                 {{ hoveredCol.checkCondition.humanReadable }}
               </p>
-              <div class="text-[10px] font-mono text-amber-400/70 bg-amber-950/60 px-1.5 py-0.5 rounded">
+              <div
+                class="text-[10px] font-mono text-amber-400/70 bg-amber-950/60 px-1.5 py-0.5 rounded"
+              >
                 SQL: {{ hoveredCol.checkCondition.raw }}
               </div>
             </div>
 
             <!-- Default Expression -->
-            <div v-if="hoveredCol.defaultValue" class="flex items-center justify-between text-[11px] bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg px-2.5 py-1.5">
+            <div
+              v-if="hoveredCol.defaultValue"
+              class="flex items-center justify-between text-[11px] bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg px-2.5 py-1.5"
+            >
               <span class="text-[var(--text-muted)]">Default Value:</span>
-              <span class="font-mono text-[var(--text-primary)] font-semibold">{{ hoveredCol.defaultValue }}</span>
+              <span class="font-mono text-[var(--text-primary)] font-semibold">{{
+                hoveredCol.defaultValue
+              }}</span>
             </div>
 
             <!-- Active Constraints Badges -->
             <div v-if="hoveredCol.constraintsList?.length" class="pt-1">
-              <span class="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider block mb-1">
+              <span
+                class="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider block mb-1"
+              >
                 Active Constraints
               </span>
               <div class="flex flex-wrap gap-1.5">
@@ -337,7 +387,7 @@ function onRowMouseLeave() {
             </div>
           </div>
         </div>
-      </Transition>
-    </Teleport>
+      </transition>
+    </teleport>
   </div>
 </template>

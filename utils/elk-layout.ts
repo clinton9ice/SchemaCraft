@@ -24,9 +24,9 @@ export async function layoutWithElk(
     return { positions: {} }
   }
 
-  const validTableNames = new Set(tables.map((t) => t.name))
+  const validTableNames = new Set(tables.map(t => t.name))
 
-  const elkNodes = tables.map((table) => {
+  const elkNodes = tables.map(table => {
     const rowCount = table.columns?.length || 1
     const calculatedHeight = Math.max(80, 44 + rowCount * 30 + 16)
 
@@ -49,7 +49,7 @@ export async function layoutWithElk(
       }
     })
     .filter(
-      (e) =>
+      e =>
         e.sources[0] &&
         e.targets[0] &&
         e.sources[0] !== e.targets[0] &&
@@ -77,7 +77,7 @@ export async function layoutWithElk(
     const positions: Record<string, { x: number; y: number }> = {}
 
     if (layouted.children) {
-      layouted.children.forEach((child) => {
+      layouted.children.forEach(child => {
         positions[child.id] = {
           x: Math.round(child.x || 0) + 50,
           y: Math.round(child.y || 0) + 50,
@@ -85,10 +85,16 @@ export async function layoutWithElk(
       })
     }
 
+    const resultNode = layouted as {
+      width?: number
+      height?: number
+      children?: Array<{ id: string; x?: number; y?: number }>
+    }
+
     return {
       positions,
-      width: (layouted as any).width,
-      height: (layouted as any).height,
+      width: resultNode.width,
+      height: resultNode.height,
     }
   } catch (err) {
     console.warn('ELK layout fallback:', err)
@@ -104,4 +110,3 @@ export async function layoutWithElk(
     return { positions }
   }
 }
-

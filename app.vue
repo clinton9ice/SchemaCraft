@@ -27,6 +27,6 @@ onUnmounted(() => {
 
 <template>
   <div class="h-full w-full bg-[var(--app-bg)] text-[var(--text-primary)]">
-    <NuxtPage />
+    <nuxt-page />
   </div>
 </template>

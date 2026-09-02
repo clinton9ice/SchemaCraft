@@ -13,7 +13,9 @@ describe('SQL Compiler Utility Functions', () => {
     })
 
     it('should handle column references', () => {
-      expect(rawExprToString({ ColumnRef: { fields: [{ String: { sval: 'user_id' } }] } })).toBe('user_id')
+      expect(rawExprToString({ ColumnRef: { fields: [{ String: { sval: 'user_id' } }] } })).toBe(
+        'user_id'
+      )
       expect(rawExprToString({ ColumnRef: { fields: [{ A_Star: true }] } }, 'id')).toBe('id')
       expect(rawExprToString({ ColumnRef: { fields: [{ A_Star: true }] } })).toBe('*')
       expect(rawExprToString({ ColumnRef: { fields: [] } }, 'id')).toBe('id')
@@ -21,135 +23,182 @@ describe('SQL Compiler Utility Functions', () => {
     })
 
     it('should handle function calls', () => {
-      expect(rawExprToString({
-        FuncCall: {
-          funcname: [{ String: { sval: 'length' } }],
-          args: [{ ColumnRef: { fields: [{ String: { sval: 'name' } }] } }]
-        }
-      })).toBe('length(name)')
-      expect(rawExprToString({
-        FuncCall: {
-          funcname: [],
-          args: []
-        }
-      })).toBe('()')
+      expect(
+        rawExprToString({
+          FuncCall: {
+            funcname: [{ String: { sval: 'length' } }],
+            args: [{ ColumnRef: { fields: [{ String: { sval: 'name' } }] } }],
+          },
+        })
+      ).toBe('length(name)')
+      expect(
+        rawExprToString({
+          FuncCall: {
+            funcname: [],
+            args: [],
+          },
+        })
+      ).toBe('()')
     })
 
     it('should handle type casts', () => {
-      expect(rawExprToString({
-        TypeCast: { arg: { A_Const: { sval: { sval: 'active' } } } }
-      })).toBe("'active'")
+      expect(
+        rawExprToString({
+          TypeCast: { arg: { A_Const: { sval: { sval: 'active' } } } },
+        })
+      ).toBe("'active'")
     })
 
     it('should handle A_Expr (comparisons and operators)', () => {
       // Simple comparison
-      expect(rawExprToString({
-        A_Expr: {
-          lexpr: { ColumnRef: { fields: [{ String: { sval: 'age' } }] } },
-          name: [{ String: { sval: '>' } }],
-          rexpr: { A_Const: { ival: { ival: 18 } } },
-          kind: 'AEXPR_OP'
-        }
-      })).toBe('age > 18')
+      expect(
+        rawExprToString({
+          A_Expr: {
+            lexpr: { ColumnRef: { fields: [{ String: { sval: 'age' } }] } },
+            name: [{ String: { sval: '>' } }],
+            rexpr: { A_Const: { ival: { ival: 18 } } },
+            kind: 'AEXPR_OP',
+          },
+        })
+      ).toBe('age > 18')
 
       // IN expression
-      expect(rawExprToString({
-        A_Expr: {
-          lexpr: { ColumnRef: { fields: [{ String: { sval: 'status' } }] } },
-          name: [{ String: { sval: '=' } }],
-          rexpr: { List: { items: [{ A_Const: { sval: { sval: 'active' } } }, { A_Const: { sval: { sval: 'pending' } } }] } },
-          kind: 'AEXPR_IN'
-        }
-      })).toBe('status IN (\'active\', \'pending\')')
+      expect(
+        rawExprToString({
+          A_Expr: {
+            lexpr: { ColumnRef: { fields: [{ String: { sval: 'status' } }] } },
+            name: [{ String: { sval: '=' } }],
+            rexpr: {
+              List: {
+                items: [
+                  { A_Const: { sval: { sval: 'active' } } },
+                  { A_Const: { sval: { sval: 'pending' } } },
+                ],
+              },
+            },
+            kind: 'AEXPR_IN',
+          },
+        })
+      ).toBe("status IN ('active', 'pending')")
 
       // NOT IN expression
-      expect(rawExprToString({
-        A_Expr: {
-          lexpr: { ColumnRef: { fields: [{ String: { sval: 'status' } }] } },
-          name: [{ String: { sval: '<>' } }],
-          rexpr: { List: { items: [{ A_Const: { sval: { sval: 'deleted' } } }] } },
-          kind: 'AEXPR_IN'
-        }
-      })).toBe('status NOT IN (\'deleted\')')
+      expect(
+        rawExprToString({
+          A_Expr: {
+            lexpr: { ColumnRef: { fields: [{ String: { sval: 'status' } }] } },
+            name: [{ String: { sval: '<>' } }],
+            rexpr: { List: { items: [{ A_Const: { sval: { sval: 'deleted' } } }] } },
+            kind: 'AEXPR_IN',
+          },
+        })
+      ).toBe("status NOT IN ('deleted')")
 
       // LIKE expression
-      expect(rawExprToString({
-        A_Expr: {
-          lexpr: { ColumnRef: { fields: [{ String: { sval: 'email' } }] } },
-          rexpr: { A_Const: { sval: { sval: '%@gmail.com' } } },
-          kind: 'AEXPR_LIKE'
-        }
-      })).toBe('email LIKE \'%@gmail.com\'')
+      expect(
+        rawExprToString({
+          A_Expr: {
+            lexpr: { ColumnRef: { fields: [{ String: { sval: 'email' } }] } },
+            rexpr: { A_Const: { sval: { sval: '%@gmail.com' } } },
+            kind: 'AEXPR_LIKE',
+          },
+        })
+      ).toBe("email LIKE '%@gmail.com'")
     })
 
     it('should handle boolean expressions', () => {
       // AND
-      expect(rawExprToString({
-        BoolExpr: {
-          boolop: 0,
-          args: [
-            { A_Const: { boolval: { boolval: true } } },
-            { A_Const: { boolval: { boolval: false } } }
-          ]
-        }
-      })).toBe('true AND false')
+      expect(
+        rawExprToString({
+          BoolExpr: {
+            boolop: 0,
+            args: [
+              { A_Const: { boolval: { boolval: true } } },
+              { A_Const: { boolval: { boolval: false } } },
+            ],
+          },
+        })
+      ).toBe('true AND false')
 
       // OR
-      expect(rawExprToString({
-        BoolExpr: {
-          boolop: 1,
-          args: [
-            { A_Const: { boolval: { boolval: true } } },
-            { A_Const: { boolval: { boolval: false } } }
-          ]
-        }
-      })).toBe('true OR false')
+      expect(
+        rawExprToString({
+          BoolExpr: {
+            boolop: 1,
+            args: [
+              { A_Const: { boolval: { boolval: true } } },
+              { A_Const: { boolval: { boolval: false } } },
+            ],
+          },
+        })
+      ).toBe('true OR false')
 
       // NOT
-      expect(rawExprToString({
-        BoolExpr: {
-          boolop: 2,
-          args: [{ A_Const: { boolval: { boolval: true } } }]
-        }
-      })).toBe('NOT (true)')
+      expect(
+        rawExprToString({
+          BoolExpr: {
+            boolop: 2,
+            args: [{ A_Const: { boolval: { boolval: true } } }],
+          },
+        })
+      ).toBe('NOT (true)')
     })
 
     it('should handle null tests', () => {
-      expect(rawExprToString({
-        NullTest: {
-          arg: { ColumnRef: { fields: [{ String: { sval: 'deleted_at' } }] } },
-          nulltesttype: 0
-        }
-      })).toBe('deleted_at IS NULL')
+      expect(
+        rawExprToString({
+          NullTest: {
+            arg: { ColumnRef: { fields: [{ String: { sval: 'deleted_at' } }] } },
+            nulltesttype: 0,
+          },
+        })
+      ).toBe('deleted_at IS NULL')
 
-      expect(rawExprToString({
-        NullTest: {
-          arg: { ColumnRef: { fields: [{ String: { sval: 'deleted_at' } }] } },
-          nulltesttype: 1
-        }
-      })).toBe('deleted_at IS NOT NULL')
+      expect(
+        rawExprToString({
+          NullTest: {
+            arg: { ColumnRef: { fields: [{ String: { sval: 'deleted_at' } }] } },
+            nulltesttype: 1,
+          },
+        })
+      ).toBe('deleted_at IS NOT NULL')
     })
   })
 
   describe('interpretCheckCondition', () => {
     it('should handle length checks', () => {
-      expect(interpretCheckCondition('length(name) >= 3')).toBe('length of name must be at least 3 characters')
-      expect(interpretCheckCondition('length(name) > 3')).toBe('length of name must be greater than 3 characters')
-      expect(interpretCheckCondition('length(name) < 3')).toBe('length of name must be less than 3 characters')
-      expect(interpretCheckCondition('length(name) <= 3')).toBe('length of name must be at most 3 characters')
-      expect(interpretCheckCondition('length(name) = 3')).toBe('length of name must be exactly 3 characters')
+      expect(interpretCheckCondition('length(name) >= 3')).toBe(
+        'length of name must be at least 3 characters'
+      )
+      expect(interpretCheckCondition('length(name) > 3')).toBe(
+        'length of name must be greater than 3 characters'
+      )
+      expect(interpretCheckCondition('length(name) < 3')).toBe(
+        'length of name must be less than 3 characters'
+      )
+      expect(interpretCheckCondition('length(name) <= 3')).toBe(
+        'length of name must be at most 3 characters'
+      )
+      expect(interpretCheckCondition('length(name) = 3')).toBe(
+        'length of name must be exactly 3 characters'
+      )
     })
 
     it('should handle IN checks', () => {
-      expect(interpretCheckCondition("status IN ('active', 'pending')")).toBe('status must be one of: active, pending')
+      expect(interpretCheckCondition("status IN ('active', 'pending')")).toBe(
+        'status must be one of: active, pending'
+      )
     })
 
     it('should handle NOT IN checks', () => {
-      expect(interpretCheckCondition("status NOT IN ('deleted')")).toBe('status cannot be any of: deleted')
+      expect(interpretCheckCondition("status NOT IN ('deleted')")).toBe(
+        'status cannot be any of: deleted'
+      )
     })
 
     it('should handle LIKE checks', () => {
-      expect(interpretCheckCondition("email LIKE '%@gmail.com'")).toBe("email must match pattern '%@gmail.com'")
+      expect(interpretCheckCondition("email LIKE '%@gmail.com'")).toBe(
+        "email must match pattern '%@gmail.com'"
+      )
     })
 
     it('should handle comparison checks', () => {
@@ -197,30 +246,33 @@ describe('SQL Compiler Utility Functions', () => {
                         {
                           Constraint: {
                             contype: 4, // PRIMARY KEY
-                          }
-                        }
-                      ]
-                    }
+                          },
+                        },
+                      ],
+                    },
                   },
                   {
                     ColumnDef: {
                       colname: 'username',
-                      typeName: { names: [{ String: { sval: 'varchar' } }], typmods: [{ A_Const: { ival: { ival: 255 } } }] },
+                      typeName: {
+                        names: [{ String: { sval: 'varchar' } }],
+                        typmods: [{ A_Const: { ival: { ival: 255 } } }],
+                      },
                       is_not_null: true,
                       constraints: [
                         {
                           Constraint: {
                             contype: 5, // UNIQUE
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -245,29 +297,26 @@ describe('SQL Compiler Utility Functions', () => {
                       colname: 'user_id',
                       typeName: { names: [{ String: { sval: 'int4' } }] },
                       is_not_null: true,
-                    }
+                    },
                   },
                   {
                     ColumnDef: {
                       colname: 'role_id',
                       typeName: { names: [{ String: { sval: 'int4' } }] },
                       is_not_null: true,
-                    }
+                    },
                   },
                   {
                     Constraint: {
                       contype: 4, // PRIMARY KEY
-                      keys: [
-                        { String: { sval: 'user_id' } },
-                        { String: { sval: 'role_id' } }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                      keys: [{ String: { sval: 'user_id' } }, { String: { sval: 'role_id' } }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -287,7 +336,7 @@ describe('SQL Compiler Utility Functions', () => {
                     ColumnDef: {
                       colname: 'price',
                       typeName: { names: [{ String: { sval: 'numeric' } }] },
-                    }
+                    },
                   },
                   {
                     Constraint: {
@@ -297,16 +346,16 @@ describe('SQL Compiler Utility Functions', () => {
                           lexpr: { ColumnRef: { fields: [{ String: { sval: 'price' } }] } },
                           name: [{ String: { sval: '>' } }],
                           rexpr: { A_Const: { ival: { ival: 0 } } },
-                          kind: 'AEXPR_OP'
-                        }
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                          kind: 'AEXPR_OP',
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -332,17 +381,17 @@ describe('SQL Compiler Utility Functions', () => {
                           Constraint: {
                             contype: 7, // FOREIGN KEY
                             pktable: { relname: 'users' },
-                            pk_attrs: [{ String: { sval: 'id' } }]
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                            pk_attrs: [{ String: { sval: 'id' } }],
+                          },
+                        },
+                      ],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -354,7 +403,7 @@ describe('SQL Compiler Utility Functions', () => {
         fromTable: 'posts',
         fromColumn: 'user_id',
         toTable: 'users',
-        toColumn: 'id'
+        toColumn: 'id',
       })
     })
 
@@ -370,21 +419,21 @@ describe('SQL Compiler Utility Functions', () => {
                     ColumnDef: {
                       colname: 'user_id',
                       typeName: { names: [{ String: { sval: 'int4' } }] },
-                    }
+                    },
                   },
                   {
                     Constraint: {
                       contype: 7, // FOREIGN KEY
                       pktable: { relname: 'users' },
                       fk_attrs: [{ String: { sval: 'user_id' } }],
-                      pk_attrs: [{ String: { sval: 'id' } }]
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                      pk_attrs: [{ String: { sval: 'id' } }],
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -400,18 +449,20 @@ describe('SQL Compiler Utility Functions', () => {
               CommentStmt: {
                 objtype: 'OBJECT_TABLE',
                 object: { List: { items: [{ String: { sval: 'users' } }] } },
-                comment: 'The users table stores account info'
-              }
-            }
+                comment: 'The users table stores account info',
+              },
+            },
           },
           {
             stmt: {
               CommentStmt: {
                 objtype: 'OBJECT_COLUMN',
-                object: { List: { items: [{ String: { sval: 'users' } }, { String: { sval: 'email' } }] } },
-                comment: 'The primary contact email'
-              }
-            }
+                object: {
+                  List: { items: [{ String: { sval: 'users' } }, { String: { sval: 'email' } }] },
+                },
+                comment: 'The primary contact email',
+              },
+            },
           },
           {
             stmt: {
@@ -422,13 +473,13 @@ describe('SQL Compiler Utility Functions', () => {
                     ColumnDef: {
                       colname: 'email',
                       typeName: { names: [{ String: { sval: 'text' } }] },
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -448,13 +499,13 @@ describe('SQL Compiler Utility Functions', () => {
                     ColumnDef: {
                       colname: 'id',
                       typeName: { names: [{ String: { sval: 'serial' } }] },
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
@@ -477,25 +528,25 @@ describe('SQL Compiler Utility Functions', () => {
                         names: [{ String: { sval: 'numeric' } }],
                         typmods: [
                           { A_Const: { ival: { ival: 10 } } },
-                          { A_Const: { ival: { ival: 2 } } }
-                        ]
-                      }
-                    }
+                          { A_Const: { ival: { ival: 2 } } },
+                        ],
+                      },
+                    },
                   },
                   {
                     ColumnDef: {
                       colname: 'c2',
                       typeName: {
                         names: [{ String: { sval: 'text' } }],
-                        arrayBounds: [{}]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        ]
+                        arrayBounds: [{}],
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ],
       }
 
       const result = compilePgAst(ast)
