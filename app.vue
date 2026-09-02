@@ -28,5 +28,9 @@ onUnmounted(() => {
 <template>
   <div class="h-full w-full bg-[var(--app-bg)] text-[var(--text-primary)]">
     <nuxt-page />
+    <!-- Global Guard & System Dialogs -->
+    <features-editor-tab-limit-modal />
+    <features-editor-file-oversize-modal />
+    <features-editor-batch-limit-modal />
   </div>
 </template>

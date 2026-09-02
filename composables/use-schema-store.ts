@@ -3,6 +3,8 @@ import { parseDbml, tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { parsePrisma, tablesToPrisma, prismaToSql } from '~/utils/prisma-compiler'
 import { compileTypeORM, tablesToTypeORM, typeormToSql } from '~/utils/typeorm-compiler'
 import { compileDrizzle, tablesToDrizzle, drizzleToSql } from '~/utils/drizzle-compiler'
+import { MAX_WORKSPACE_TABS } from '~/utils/constants'
+import { downloadZipArchive, type ZipFileEntry } from '~/utils/zip-exporter'
 
 export type SupportedLanguage = 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
 
@@ -191,6 +193,7 @@ const activeTabId = ref<string>('tab-default')
 const isSaving = ref(false)
 const lastSaveTimestamp = ref<Date | null>(new Date())
 const isParsing = ref(false)
+const isTabLimitModalOpen = ref(false)
 const availablePresets = ref<
   Array<{
     id: string
@@ -271,6 +274,11 @@ export function useSchemaStore() {
 
   // Tab management methods
   function addNewTab(title?: string, initialContent?: string, language?: SupportedLanguage) {
+    if (tabs.value.length >= MAX_WORKSPACE_TABS) {
+      isTabLimitModalOpen.value = true
+      return null
+    }
+
     const isExplicitContent = typeof initialContent === 'string'
     const defaultNewTabSql = `-- SQL Schema\n\nCREATE TABLE new_table (\n    id INT PRIMARY KEY,\n    name VARCHAR(100) NOT NULL,\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n`
 
@@ -296,6 +304,7 @@ export function useSchemaStore() {
     tabs.value.push(newTab)
     activeTabId.value = newTab.id
     parseSchema(newTab.sqlCode, lang)
+    return newTab
   }
 
   function closeTab(tabId: string) {
@@ -643,6 +652,18 @@ export function useSchemaStore() {
     }
   }
 
+  function canAddTabs(count = 1): boolean {
+    return tabs.value.length + count <= MAX_WORKSPACE_TABS
+  }
+
+  function exportAllTabsAsZip(zipName = 'collection.zip') {
+    const fileEntries: ZipFileEntry[] = tabs.value.map(tab => ({
+      name: tab.fileName || `${tab.title || 'schema'}.sql`,
+      content: tab.sqlCode || '',
+    }))
+    downloadZipArchive(fileEntries, zipName)
+  }
+
   return {
     tabs,
     activeTabId,
@@ -678,5 +699,9 @@ export function useSchemaStore() {
     loadSample,
     exportSchema,
     formatSql,
+    isTabLimitModalOpen,
+    MAX_WORKSPACE_TABS,
+    canAddTabs,
+    exportAllTabsAsZip,
   }
 }

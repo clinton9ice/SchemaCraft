@@ -138,9 +138,26 @@ function cancelRenaming() {
       </div>
     </div>
 
-    <!-- Add New Tab Button with Language Selection Dropdown -->
-    <div class="px-2 flex items-center gap-1 shrink-0 relative new-tab-container">
-      <u-tooltip text="Add New Tab (SQL / DBML / Prisma)" :popper="{ placement: 'bottom' }">
+    <!-- Add New Tab Button with Tab Counter -->
+    <div class="px-2 flex items-center gap-1.5 shrink-0 relative new-tab-container">
+      <span
+        v-if="tabs.length >= 8"
+        class="text-[10px] font-mono px-1.5 py-0.5 rounded"
+        :class="
+          tabs.length >= 10
+            ? 'bg-amber-500/20 text-amber-300 font-semibold'
+            : 'text-neutral-400 bg-white/5'
+        "
+        :title="`${tabs.length} of 10 maximum tabs open`"
+      >
+        {{ tabs.length }}/10
+      </span>
+      <u-tooltip
+        :text="
+          tabs.length >= 10 ? 'Tab limit reached (10/10)' : 'Add New Tab (SQL / DBML / Prisma)'
+        "
+        :popper="{ placement: 'bottom' }"
+      >
         <button
           type="button"
           class="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
