@@ -1,13 +1,13 @@
 <script setup lang="ts">
-const { cursorPosition, editorLanguage, detectedTablesCount } = useSchemaStore()
+const { cursorPosition, activeLanguage, detectedTablesCount } = useSchemaStore()
 const { zoomLevel } = useCanvasViewport()
 const { validationError } = usePostgresValidator()
 </script>
 
 <template>
   <footer
-    class="h-6 text-white px-3 flex items-center justify-between text-[11px] font-sans shrink-0 select-none z-10 transition-colors duration-200"
-    :class="validationError ? 'bg-red-700' : 'bg-[#007acc]'"
+    class="h-6 px-3 flex items-center justify-between text-[11px] font-sans shrink-0 select-none z-10 transition-colors duration-150 border-t border-[var(--node-border)]"
+    :class="validationError ? 'bg-red-700 text-white' : 'bg-[var(--status-bar-bg)] text-white/90'"
   >
     <!-- Left Section: Status & Diagnostics -->
     <div class="flex items-center gap-3">
@@ -64,7 +64,7 @@ const { validationError } = usePostgresValidator()
       </div>
 
       <div class="hover:bg-white/10 px-1.5 py-0.5 rounded cursor-pointer transition-colors font-sans uppercase font-semibold">
-        {{ editorLanguage }}
+        {{ activeLanguage }}
       </div>
 
       <div class="h-3 w-px bg-white/20" />

@@ -1,3 +1,5 @@
+import type * as monaco from 'monaco-editor'
+
 export type ThemeId = 'dark' | 'monokai' | 'dracula' | 'nord' | 'light'
 
 export interface ThemeDefinition {
@@ -8,7 +10,7 @@ export interface ThemeDefinition {
   bgPreview: string
   accentColor: string
   editorTheme: string
-  monacoThemeData?: any
+  monacoThemeData?: monaco.editor.IStandaloneThemeData
 }
 
 export const THEME_LIST: ThemeDefinition[] = [
@@ -37,14 +39,23 @@ export const THEME_LIST: ThemeDefinition[] = [
         { token: 'comment', foreground: '75715E', fontStyle: 'italic' },
         { token: 'keyword', foreground: 'F92672', fontStyle: 'bold' },
         { token: 'keyword.sql', foreground: 'F92672', fontStyle: 'bold' },
+        { token: 'keyword.prisma', foreground: 'F92672', fontStyle: 'bold' },
+        { token: 'keyword.dbml', foreground: 'F92672', fontStyle: 'bold' },
         { token: 'string', foreground: 'E6DB74' },
         { token: 'string.sql', foreground: 'E6DB74' },
+        { token: 'string.dbml', foreground: 'E6DB74' },
         { token: 'number', foreground: 'AE81FF' },
         { token: 'type', foreground: '66D9EF', fontStyle: 'italic' },
         { token: 'type.sql', foreground: '66D9EF', fontStyle: 'italic' },
+        { token: 'type.prisma', foreground: '66D9EF', fontStyle: 'italic' },
+        { token: 'type.dbml', foreground: '66D9EF', fontStyle: 'italic' },
         { token: 'identifier', foreground: 'A6E22E' },
+        { token: 'identifier.sql', foreground: 'A6E22E' },
+        { token: 'identifier.prisma', foreground: 'A6E22E' },
         { token: 'delimiter', foreground: 'F8F8F2' },
         { token: 'operator', foreground: 'F92672' },
+        { token: 'variable', foreground: 'FD971F' },
+        { token: 'function', foreground: 'A6E22E' },
       ],
       colors: {
         'editor.background': '#272822',
@@ -54,6 +65,12 @@ export const THEME_LIST: ThemeDefinition[] = [
         'editorLineNumber.foreground': '#90908A',
         'editorLineNumber.activeForeground': '#C2C2BF',
         'editor.selectionBackground': '#49483E',
+        'editorGutter.background': '#272822',
+        'editorSuggestWidget.background': '#1e1f1c',
+        'editorSuggestWidget.border': '#49483e',
+        'editorSuggestWidget.selectedBackground': '#3e3d32',
+        'editorHoverWidget.background': '#1e1f1c',
+        'editorHoverWidget.border': '#49483e',
       },
     },
   },

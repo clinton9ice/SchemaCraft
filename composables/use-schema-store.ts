@@ -1,8 +1,10 @@
 import type { CompiledTable, CompiledRelation } from '~/utils/sql-compiler'
 import { parseDbml, tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { parsePrisma, tablesToPrisma, prismaToSql } from '~/utils/prisma-compiler'
+import { compileTypeORM, tablesToTypeORM, typeormToSql, typeormToDbml, typeormToPrisma } from '~/utils/typeorm-compiler'
+import { compileDrizzle, tablesToDrizzle, drizzleToSql } from '~/utils/drizzle-compiler'
 
-export type SupportedLanguage = 'sql' | 'dbml' | 'prisma'
+export type SupportedLanguage = 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
 
 export interface LanguageOption {
   id: SupportedLanguage
@@ -16,19 +18,27 @@ export interface LanguageOption {
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
   {
     id: 'sql',
-    label: 'Standard SQL',
-    shortLabel: 'SQL',
+    label: 'PostgreSQL',
+    shortLabel: 'Postgres',
     ext: '.sql',
-    icon: '🗄️',
-    description: 'Standard SQL & PostgreSQL DDL statements',
+    icon: '🐘',
+    description: 'PostgreSQL DDL & Standard SQL schema statements',
   },
   {
-    id: 'dbml',
-    label: 'DBML',
-    shortLabel: 'DBML',
-    ext: '.dbml',
-    icon: '📋',
-    description: 'Database Markup Language schema format',
+    id: 'drizzle',
+    label: 'Drizzle ORM',
+    shortLabel: 'Drizzle',
+    ext: '.ts',
+    icon: '💧',
+    description: 'TypeScript Drizzle ORM schema definitions',
+  },
+  {
+    id: 'typeorm',
+    label: 'TypeORM Entities',
+    shortLabel: 'TypeORM',
+    ext: '.ts',
+    icon: '📦',
+    description: 'TypeScript TypeORM entity definitions',
   },
   {
     id: 'prisma',
@@ -37,6 +47,14 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
     ext: '.prisma',
     icon: '💎',
     description: 'Prisma Schema ORM model definitions',
+  },
+  {
+    id: 'dbml',
+    label: 'DBML',
+    shortLabel: 'DBML',
+    ext: '.dbml',
+    icon: '📋',
+    description: 'Database Markup Language schema format',
   },
 ]
 
@@ -47,7 +65,7 @@ export interface SchemaTab {
   lastSavedCode: string
   fileName: string
   language: SupportedLanguage
-  fileHandle?: any
+  fileHandle?: FileSystemFileHandle
   cursorPosition: { line: number; column: number }
   parsedTables: CompiledTable[]
   parsedRelations: CompiledRelation[]
@@ -57,6 +75,14 @@ export interface SchemaTab {
 export function detectLanguageFromCode(code: string): SupportedLanguage {
   if (!code || !code.trim()) return 'sql'
   const trimmed = code.trim()
+
+  if (/\b(?:pgTable|mysqlTable|sqliteTable)\s*\(|from\s+['"]drizzle-orm/im.test(trimmed)) {
+    return 'drizzle'
+  }
+
+  if (/@Entity\b|from\s+['"]typeorm['"]|@PrimaryGeneratedColumn|@PrimaryColumn|@Column\b/im.test(trimmed)) {
+    return 'typeorm'
+  }
 
   if (/^\s*(?:model\s+[a-zA-Z0-9_]+\s*\{|datasource\s+\w+\s*\{|generator\s+\w+\s*\{)/im.test(trimmed)) {
     return 'prisma'
@@ -255,7 +281,7 @@ export function useSchemaStore() {
 
     tabs.value.push(newTab)
     activeTabId.value = newTab.id
-    parseSchemaOnServer(newTab.sqlCode, lang)
+    parseSchema(newTab.sqlCode, lang)
   }
 
   function closeTab(tabId: string) {
@@ -305,15 +331,15 @@ export function useSchemaStore() {
 
     // Adjust file extension
     const currentName = activeTab.value.fileName
-    const baseName = currentName.replace(/\.(sql|ddl|pgsql|dbml|prisma)$/i, '')
-    const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : '.sql'
+    const baseName = currentName.replace(/\.(sql|ddl|pgsql|dbml|prisma|ts)$/i, '')
+    const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : (targetLang === 'typeorm' || targetLang === 'drizzle') ? '.ts' : '.sql'
     activeTab.value.fileName = `${baseName}${targetExt}`
     activeTab.value.title = `${baseName}${targetExt}`
 
     if (convertCode && oldLang !== targetLang) {
       convertCurrentSchema(targetLang)
     } else {
-      parseSchemaOnServer(activeTab.value.sqlCode, targetLang)
+      parseSchema(activeTab.value.sqlCode, targetLang)
     }
   }
 
@@ -327,45 +353,62 @@ export function useSchemaStore() {
     existingTables?: CompiledTable[],
     existingRelations?: CompiledRelation[]
   ): string {
-    if (fromLang === toLang) return currentCode
+    const detected = detectLanguageFromCode(currentCode)
+    const effectiveFrom = fromLang === 'sql' && detected !== 'sql' ? detected : fromLang
+
+    if (effectiveFrom === toLang) return currentCode
 
     let tables: CompiledTable[] = existingTables && existingTables.length > 0 ? existingTables : []
     let relations: CompiledRelation[] = existingRelations || []
 
     if (tables.length === 0) {
-      if (fromLang === 'dbml') {
+      if (effectiveFrom === 'dbml') {
         const parsed = parseDbml(currentCode)
         tables = parsed.tables
         relations = parsed.relations
-      } else if (fromLang === 'prisma') {
+      } else if (effectiveFrom === 'prisma') {
         const parsed = parsePrisma(currentCode)
+        tables = parsed.tables
+        relations = parsed.relations
+      } else if (effectiveFrom === 'typeorm') {
+        const parsed = compileTypeORM(currentCode)
+        tables = parsed.tables
+        relations = parsed.relations
+      } else if (effectiveFrom === 'drizzle') {
+        const parsed = compileDrizzle(currentCode)
         tables = parsed.tables
         relations = parsed.relations
       }
     }
 
+    if (toLang === 'drizzle') {
+      return tablesToDrizzle(tables, relations)
+    }
+
+    if (toLang === 'typeorm') {
+      return tablesToTypeORM(tables, relations)
+    }
+
     if (toLang === 'dbml') {
-      if (fromLang === 'prisma') {
-        const parsed = parsePrisma(currentCode)
-        return tablesToDbml(parsed.tables.length ? parsed.tables : tables, parsed.relations.length ? parsed.relations : relations)
-      }
       return tablesToDbml(tables, relations)
     }
 
     if (toLang === 'prisma') {
-      if (fromLang === 'dbml') {
-        const parsed = parseDbml(currentCode)
-        return tablesToPrisma(parsed.tables.length ? parsed.tables : tables, parsed.relations.length ? parsed.relations : relations)
-      }
       return tablesToPrisma(tables, relations)
     }
 
     if (toLang === 'sql') {
-      if (fromLang === 'dbml') {
+      if (effectiveFrom === 'dbml') {
         return dbmlToSql(currentCode)
       }
-      if (fromLang === 'prisma') {
+      if (effectiveFrom === 'prisma') {
         return prismaToSql(currentCode)
+      }
+      if (effectiveFrom === 'typeorm') {
+        return typeormToSql(currentCode)
+      }
+      if (effectiveFrom === 'drizzle') {
+        return drizzleToSql(currentCode)
       }
       return tables.length > 0 ? dbmlToSql(tablesToDbml(tables, relations)) : currentCode
     }
@@ -380,31 +423,35 @@ export function useSchemaStore() {
   function convertSchemaToNewTab(targetLang: SupportedLanguage) {
     if (!activeTab.value) return
 
-    const sourceTab = activeTab.value
-    const sourceLang = sourceTab.language || 'sql'
-    const sourceCode = sourceTab.sqlCode
+    try {
+      const sourceTab = activeTab.value
+      const sourceLang = sourceTab.language || detectLanguageFromCode(sourceTab.sqlCode) || 'sql'
+      const sourceCode = sourceTab.sqlCode
 
-    const convertedCode = convertSchemaCode(
-      sourceCode,
-      sourceLang,
-      targetLang,
-      sourceTab.parsedTables,
-      sourceTab.parsedRelations
-    )
+      const convertedCode = convertSchemaCode(
+        sourceCode,
+        sourceLang,
+        targetLang,
+        sourceTab.parsedTables,
+        sourceTab.parsedRelations
+      )
 
-    const baseName = (sourceTab.fileName || 'schema').replace(/\.(sql|ddl|pgsql|dbml|prisma)$/i, '')
-    const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : '.sql'
+      const baseName = (sourceTab.fileName || 'schema').replace(/\.(sql|ddl|pgsql|dbml|prisma|ts)$/i, '')
+      const targetExt = targetLang === 'dbml' ? '.dbml' : targetLang === 'prisma' ? '.prisma' : (targetLang === 'typeorm' || targetLang === 'drizzle') ? '.ts' : '.sql'
 
-    let targetTitle = `${baseName}${targetExt}`
-    if (tabs.value.some((t) => t.title === targetTitle || t.fileName === targetTitle)) {
-      let counter = 1
-      while (tabs.value.some((t) => t.title === `${baseName}-${counter}${targetExt}` || t.fileName === `${baseName}-${counter}${targetExt}`)) {
-        counter++
+      let targetTitle = `${baseName}${targetExt}`
+      if (tabs.value.some((t) => t.title === targetTitle || t.fileName === targetTitle)) {
+        let counter = 1
+        while (tabs.value.some((t) => t.title === `${baseName}-${counter}${targetExt}` || t.fileName === `${baseName}-${counter}${targetExt}`)) {
+          counter++
+        }
+        targetTitle = `${baseName}-${counter}${targetExt}`
       }
-      targetTitle = `${baseName}-${counter}${targetExt}`
-    }
 
-    addNewTab(targetTitle, convertedCode, targetLang)
+      addNewTab(targetTitle, convertedCode, targetLang)
+    } catch (err) {
+      console.error('Failed to convert schema to new tab:', err)
+    }
   }
 
   function convertCurrentSchema(targetLang: SupportedLanguage) {
@@ -426,7 +473,7 @@ export function useSchemaStore() {
     }
     activeTab.value.language = targetLang
     activeTab.value.lastSavedCode = activeTab.value.sqlCode
-    parseSchemaOnServer(activeTab.value.sqlCode, targetLang)
+    parseSchema(activeTab.value.sqlCode, targetLang)
   }
 
   // Fetch sample presets from server
@@ -444,7 +491,7 @@ export function useSchemaStore() {
   }
 
   // Parse SQL, DBML or Prisma into structured AST table/relation graph on Nitro
-  async function parseSchemaOnServer(code: string, langOverride?: SupportedLanguage) {
+  async function parseSchema(code: string, langOverride?: SupportedLanguage) {
     if (!activeTab.value) return
 
     const targetTabId = activeTabId.value
@@ -469,13 +516,12 @@ export function useSchemaStore() {
         method: 'POST',
         body: { sql: code, language },
       })
-
       if (res && res.success) {
         targetTab.parsedTables = res.tables || []
         targetTab.parsedRelations = res.relations || []
       }
     } catch (err) {
-      console.warn('Server parse error:', err)
+      console.warn('Schema parse error:', err)
     } finally {
       isParsing.value = false
     }
@@ -499,7 +545,7 @@ export function useSchemaStore() {
       if (activeTab.value) {
         activeTab.value.lastSavedCode = activeTab.value.sqlCode
         lastSaveTimestamp.value = new Date()
-        await parseSchemaOnServer(activeTab.value.sqlCode, activeTab.value.language)
+        await parseSchema(activeTab.value.sqlCode, activeTab.value.language)
       }
       isSaving.value = false
     }, 150)
@@ -522,7 +568,7 @@ export function useSchemaStore() {
         activeTab.value.language = lang
         activeTab.value.sqlCode = found.sql
         activeTab.value.lastSavedCode = found.sql
-        parseSchemaOnServer(found.sql, lang)
+        parseSchema(found.sql, lang)
       }
     }
   }
@@ -583,7 +629,8 @@ export function useSchemaStore() {
     isParsing,
     availablePresets,
     fetchPresets,
-    parseSchemaOnServer,
+    parseSchema,
+    parseSchemaOnServer: parseSchema,
     setSqlCode,
     setCursorPosition,
     saveSchema,

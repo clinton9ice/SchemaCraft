@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import type { CompiledTable, CompiledColumn } from '~/utils/sql-compiler'
+
 const { parsedTables, parsedRelations, isParsing } = useSchemaStore()
 
-function getPrimaryKeys(table: any): string {
+function getPrimaryKeys(table: CompiledTable): string {
   if (!table || !Array.isArray(table.columns)) return 'no PK'
-  const pks = table.columns.filter((c: any) => c.isPrimaryKey).map((c: any) => c.name)
+  const pks = table.columns.filter((c: CompiledColumn) => c.isPrimaryKey).map((c: CompiledColumn) => c.name)
   return pks.length ? pks.join(', ') : 'no PK'
 }
 </script>

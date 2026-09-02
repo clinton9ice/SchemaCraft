@@ -108,9 +108,9 @@ export function usePostgresValidator() {
       // Validate and parse through Nitro backend parser
       const res = await $fetch<{
         success: boolean
-        tables: any[]
-        relations: any[]
-        error: any
+        tables: CompiledTable[]
+        relations: CompiledRelation[]
+        error: { message?: string; cursorpos?: number } | null
       }>('/api/schema/parse', {
         method: 'POST',
         body: { sql: code, language: 'sql' },
@@ -167,7 +167,7 @@ export function usePostgresValidator() {
         validationError.value = null
         monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.warn('SQL validator network exception:', err)
     } finally {
       isValidating.value = false

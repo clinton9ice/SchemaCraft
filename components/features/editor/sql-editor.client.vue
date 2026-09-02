@@ -18,7 +18,7 @@ const {
   setLanguage,
   convertCurrentSchema,
   convertSchemaToNewTab,
-  parseSchemaOnServer,
+  parseSchema,
 } = useSchemaStore()
 
 const { validationError, isValidating, validateSql, debouncedValidate, clearValidation } = usePostgresValidator()
@@ -36,7 +36,13 @@ const currentLanguageDef = computed(() => {
   return LANGUAGE_OPTIONS.find((l) => l.id === activeLanguage.value) || LANGUAGE_OPTIONS[0]
 })
 
-// Setup Monaco Worker Environment fallback for browser Vite
+  let parseTimeout: NodeJS.Timeout | null = null
+  function debouncedParse(code: string, lang: SupportedLanguage) {
+    if (parseTimeout) clearTimeout(parseTimeout)
+    parseTimeout = setTimeout(() => {
+      parseSchema(code, lang)
+    }, 300)
+  }
 if (typeof window !== 'undefined' && !(window as any).MonacoEnvironment) {
   ;(window as any).MonacoEnvironment = {
     getWorker() {
@@ -62,6 +68,7 @@ function registerMonacoAddons() {
 function getMonacoLanguageId(lang: SupportedLanguage): string {
   if (lang === 'dbml') return 'dbml'
   if (lang === 'prisma') return 'prisma'
+  if (lang === 'typeorm' || lang === 'drizzle') return 'typescript'
   return 'sql'
 }
 
@@ -142,7 +149,7 @@ async function initMonaco() {
       setCursorPosition(e.position.lineNumber, e.position.column)
     })
 
-    // Track Content Changes with Real-time 300ms Debounced Validation
+    // Track Content Changes with Real-time 300ms Debounced Validation and Parsing
     editorInstance.onDidChangeModelContent(() => {
       if (editorInstance) {
         const val = editorInstance.getValue()
@@ -152,6 +159,7 @@ async function initMonaco() {
         const currentModel = editorInstance.getModel()
         if (currentModel) {
           debouncedValidate(val, monaco, currentModel, 300, activeLanguage.value)
+          debouncedParse(val, activeLanguage.value)
         }
       }
     })
@@ -228,11 +236,9 @@ async function initMonaco() {
   }
 }
 
-// Switch current tab view mode
-function handleSwitchViewMode(targetLang: SupportedLanguage) {
-  isLanguageDropdownOpen.value = false
-  setLanguage(targetLang, false)
-}
+const availableConvertTargets = computed(() => {
+  return LANGUAGE_OPTIONS.filter((l) => l.id !== activeLanguage.value)
+})
 
 // The 'Convert-to-Tab' Workflow: Translates schema and opens in a NEW workspace tab
 function handleConvertToNewTab(targetLang: SupportedLanguage) {
@@ -242,9 +248,11 @@ function handleConvertToNewTab(targetLang: SupportedLanguage) {
 
 function triggerNextConversion() {
   const rotation: Record<SupportedLanguage, SupportedLanguage> = {
-    sql: 'dbml',
-    dbml: 'prisma',
-    prisma: 'sql',
+    sql: 'drizzle',
+    drizzle: 'typeorm',
+    typeorm: 'prisma',
+    prisma: 'dbml',
+    dbml: 'sql',
   }
   const next = rotation[activeLanguage.value] || 'sql'
   handleConvertToNewTab(next)
@@ -305,6 +313,14 @@ onBeforeUnmount(() => {
           <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping shrink-0" />
           <span class="truncate font-mono">Ln {{ validationError.lineNumber }}, Col {{ validationError.column }}: {{ validationError.message }}</span>
         </span>
+        <span v-else-if="activeLanguage === 'drizzle'" class="text-emerald-400 font-sans flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Valid Drizzle Schema
+        </span>
+        <span v-else-if="activeLanguage === 'typeorm'" class="text-emerald-400 font-sans flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Valid TypeORM Schema
+        </span>
         <span v-else-if="activeLanguage === 'prisma'" class="text-emerald-400 font-sans flex items-center gap-1">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Valid Prisma Schema
@@ -315,7 +331,7 @@ onBeforeUnmount(() => {
         </span>
         <span v-else class="text-emerald-400 font-sans flex items-center gap-1">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Valid SQL Schema
+          Valid PostgreSQL Schema
         </span>
       </div>
     </div>
@@ -353,7 +369,7 @@ onBeforeUnmount(() => {
         <div class="relative">
           <button
             type="button"
-            title="Switch Language or Convert to New Tab"
+            title="Convert schema to other formats in a new tab"
             class="flex items-center gap-1.5 px-2 py-0.5 rounded hover:bg-white/10 text-[var(--text-primary)] hover:text-white transition-colors cursor-pointer border border-transparent hover:border-[var(--node-border)]"
             @click.stop="isLanguageDropdownOpen = !isLanguageDropdownOpen"
           >
@@ -367,70 +383,38 @@ onBeforeUnmount(() => {
           <!-- Language Selection Popover Menu -->
           <div
             v-if="isLanguageDropdownOpen"
-            class="absolute bottom-full right-0 mb-1 w-72 p-2 rounded-xl bg-[var(--header-bg)]/95 backdrop-blur-xl border border-[var(--node-border)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100 divide-y divide-[var(--node-border)]"
+            class="absolute bottom-full right-0 mb-1 w-64 p-2 rounded-xl bg-[var(--header-bg)]/95 backdrop-blur-xl border border-[var(--node-border)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100"
             @click.stop
           >
-            <!-- SECTION 1: Convert to New Tab (Recommended Workflow) -->
-            <div class="pb-2">
-              <div class="px-2 py-1 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-blue-400">
-                <span class="flex items-center gap-1">
-                  <span>⚡</span>
-                  <span>Convert to New Tab</span>
-                </span>
-                <span class="text-[9px] font-normal lowercase opacity-75">spawns new tab</span>
-              </div>
-
-              <div class="space-y-0.5 mt-1">
-                <button
-                  v-for="lang in LANGUAGE_OPTIONS"
-                  :key="'convert-' + lang.id"
-                  type="button"
-                  class="w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-left transition-colors cursor-pointer hover:bg-blue-600/15 group text-[var(--text-primary)]"
-                  @click="handleConvertToNewTab(lang.id)"
-                >
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm">{{ lang.icon }}</span>
-                    <div>
-                      <div class="font-medium text-xs text-[var(--text-primary)] group-hover:text-blue-300 flex items-center gap-1.5">
-                        Convert to {{ lang.shortLabel }}
-                        <span class="text-[9px] font-mono text-neutral-400 group-hover:text-blue-400">({{ lang.ext }})</span>
-                      </div>
-                    </div>
-                  </div>
-                  <span class="text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 font-sans font-medium">
-                    + Tab ↗
-                  </span>
-                </button>
-              </div>
+            <div class="px-2 py-1 flex items-center justify-between text-[10px] uppercase font-bold tracking-wider text-blue-400">
+              <span class="flex items-center gap-1">
+                <span>⚡</span>
+                <span>Convert Schema To</span>
+              </span>
+              <span class="text-[9px] font-normal lowercase opacity-75">new tab</span>
             </div>
 
-            <!-- SECTION 2: Switch View Mode on Current Tab -->
-            <div class="pt-2">
-              <div class="px-2 py-1 text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)]">
-                Switch View Mode (Current Tab)
-              </div>
-
-              <div class="space-y-0.5 mt-1">
-                <button
-                  v-for="lang in LANGUAGE_OPTIONS"
-                  :key="'switch-' + lang.id"
-                  type="button"
-                  class="w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-left transition-colors cursor-pointer group"
-                  :class="activeLanguage === lang.id ? 'bg-white/10 text-white font-medium' : 'hover:bg-white/5 text-[var(--text-muted)] hover:text-white'"
-                  @click="handleSwitchViewMode(lang.id)"
-                >
-                  <div class="flex items-center gap-2">
-                    <span class="text-sm opacity-80">{{ lang.icon }}</span>
-                    <div>
-                      <div class="text-xs">
-                        {{ lang.label }}
-                      </div>
+            <div class="space-y-1 mt-1">
+              <button
+                v-for="lang in availableConvertTargets"
+                :key="'convert-' + lang.id"
+                type="button"
+                class="w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-left transition-colors cursor-pointer hover:bg-blue-600/15 group text-[var(--text-primary)]"
+                @click="handleConvertToNewTab(lang.id)"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="text-base">{{ lang.icon }}</span>
+                  <div>
+                    <div class="font-medium text-xs text-[var(--text-primary)] group-hover:text-blue-300 flex items-center gap-1.5">
+                      {{ lang.label }}
+                      <span class="text-[9px] font-mono text-neutral-400 group-hover:text-blue-400">({{ lang.ext }})</span>
                     </div>
                   </div>
-
-                  <span v-if="activeLanguage === lang.id" class="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                </button>
-              </div>
+                </div>
+                <span class="text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 font-sans font-medium">
+                  + Tab ↗
+                </span>
+              </button>
             </div>
           </div>
         </div>

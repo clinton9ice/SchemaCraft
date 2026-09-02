@@ -140,7 +140,7 @@ function onRowMouseLeave() {
           :id="`${data.name}.${col.name}-target`"
           type="target"
           :position="Position.Left"
-          class="!w-2 !h-2 !-left-1 !bg-blue-400 !border !border-[#0f172a] z-10"
+          class="!w-2 !h-2 !-left-1 !bg-[var(--accent)] !border !border-[var(--node-header)] z-10"
         />
 
         <!-- Full Column Row Container -->
@@ -238,7 +238,7 @@ function onRowMouseLeave() {
           :id="`${data.name}.${col.name}-source`"
           type="source"
           :position="Position.Right"
-          class="!w-2 !h-2 !-right-1 !bg-sky-400 !border !border-[#0f172a] z-10"
+          class="!w-2 !h-2 !-right-1 !bg-[var(--accent)] !border !border-[var(--node-header)] z-10"
         />
       </div>
     </div>

@@ -3,6 +3,19 @@ export function useSplitPane() {
   const isDragging = ref(false)
   const mobileView = ref<'editor' | 'canvas'>('editor')
   const containerRef = ref<HTMLElement | null>(null)
+  let rafId: number | null = null
+
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem('schemacraft-split')
+      if (saved) {
+        const parsed = parseFloat(saved)
+        if (!isNaN(parsed) && parsed >= 15 && parsed <= 85) {
+          splitPercent.value = parsed
+        }
+      }
+    } catch {}
+  }
 
   function startDragging(event: MouseEvent | TouchEvent) {
     event.preventDefault()
@@ -28,9 +41,9 @@ export function useSplitPane() {
     if (containerWidth <= 0) return
 
     const offset = clientX - rect.left
-    const minWidthPx = 200
+    const minWidthPx = 220
 
-    // Calculate percentage bounds for min 200px
+    // Calculate percentage bounds for min 220px
     const minPercent = (minWidthPx / containerWidth) * 100
     const maxPercent = 100 - minPercent
 
@@ -39,13 +52,23 @@ export function useSplitPane() {
 
     splitPercent.value = Number(clampedPercent.toFixed(2))
 
-    // Trigger window resize event so Monaco and Vue Flow smoothly adapt viewport
-    window.dispatchEvent(new Event('resize'))
+    // RAF throttling prevents layout thrashing across Monaco and Vue Flow
+    if (!rafId && typeof window !== 'undefined') {
+      rafId = window.requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'))
+        rafId = null
+      })
+    }
   }
 
   function stopDragging() {
     if (!isDragging.value) return
     isDragging.value = false
+
+    if (rafId && typeof window !== 'undefined') {
+      window.cancelAnimationFrame(rafId)
+      rafId = null
+    }
 
     if (typeof window !== 'undefined') {
       window.removeEventListener('mousemove', onDrag)
@@ -54,6 +77,10 @@ export function useSplitPane() {
       window.removeEventListener('touchend', stopDragging)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+
+      try {
+        localStorage.setItem('schemacraft-split', String(splitPercent.value))
+      } catch {}
     }
 
     // Final resize trigger to ensure pixel-perfect canvas/editor fitting
@@ -62,14 +89,24 @@ export function useSplitPane() {
 
   function resetSplit() {
     splitPercent.value = 40
-    window.dispatchEvent(new Event('resize'))
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('schemacraft-split', '40')
+      } catch {}
+      window.dispatchEvent(new Event('resize'))
+    }
   }
 
   function toggleMobileView() {
     mobileView.value = mobileView.value === 'editor' ? 'canvas' : 'editor'
-    nextTick(() => {
-      window.dispatchEvent(new Event('resize'))
-    })
+    if (typeof window !== 'undefined') {
+      nextTick(() => {
+        window.dispatchEvent(new Event('resize'))
+        if (mobileView.value === 'canvas') {
+          window.dispatchEvent(new CustomEvent('schemacraft:fit-view'))
+        }
+      })
+    }
   }
 
   return {

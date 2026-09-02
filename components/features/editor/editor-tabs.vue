@@ -61,10 +61,24 @@ function cancelRenaming() {
               ? 'bg-emerald-500/20 text-emerald-300'
               : tab.language === 'dbml'
               ? 'bg-amber-500/20 text-amber-300'
+              : tab.language === 'drizzle'
+              ? 'bg-cyan-500/20 text-cyan-300'
+              : tab.language === 'typeorm'
+              ? 'bg-purple-500/20 text-purple-300'
               : 'bg-blue-500/20 text-blue-300',
           ]"
         >
-          {{ tab.language === 'prisma' ? 'PRISMA' : tab.language === 'dbml' ? 'DBML' : 'SQL' }}
+          {{
+            tab.language === 'prisma'
+              ? 'PRISMA'
+              : tab.language === 'dbml'
+              ? 'DBML'
+              : tab.language === 'drizzle'
+              ? 'DRIZZLE'
+              : tab.language === 'typeorm'
+              ? 'TYPEORM'
+              : 'SQL'
+          }}
         </span>
 
         <!-- Tab Title (or Inline Rename Input) -->

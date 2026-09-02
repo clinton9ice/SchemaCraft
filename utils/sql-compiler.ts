@@ -247,7 +247,7 @@ export function interpretCheckCondition(rawCondition: string): string {
   }
 
   // Matches: column > value / column >= value / column < value / column <= value / column = value
-  const compMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*(>=|<=|>|<|!=|<>|=)\s*(.+)$/i)
+  const compMatch = trimmed.match(/^([a-zA-Z0-9_.]+)\s*(>=|<=|!=|<>|>|<|=)\s*(.+)$/i)
   if (compMatch) {
     const [, col, op, val] = compMatch
     const cleanVal = val.trim()
