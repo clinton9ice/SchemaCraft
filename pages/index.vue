@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const { sqlCode, parseSchema } = useSchemaStore()
 const { saveSqlFile } = useFileSystem()
+const { toggleConsole } = useEditorConsole()
 const {
   splitPercent,
   isDragging,
@@ -15,6 +16,11 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
     e.preventDefault()
     saveSqlFile(false)
+  }
+  // Cmd + J or Ctrl + J toggles the VS Code style Error / Terminal Console
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+    e.preventDefault()
+    toggleConsole()
   }
 }
 
@@ -122,6 +128,9 @@ onBeforeUnmount(() => {
         </template>
       </button>
     </div>
+
+    <!-- Integrated VS Code Style Error Terminal / Console Drawer -->
+    <features-editor-error-console />
 
     <!-- Bottom Status Bar (VS Code style) -->
     <shared-status-bar />
