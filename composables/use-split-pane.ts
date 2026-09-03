@@ -1,8 +1,9 @@
+const splitPercent = ref(40)
+const isDragging = ref(false)
+const mobileView = ref<'editor' | 'canvas'>('editor')
+const containerRef = ref<HTMLElement | null>(null)
+
 export function useSplitPane() {
-  const splitPercent = ref(40)
-  const isDragging = ref(false)
-  const mobileView = ref<'editor' | 'canvas'>('editor')
-  const containerRef = ref<HTMLElement | null>(null)
   let rafId: number | null = null
 
   if (typeof window !== 'undefined') {
@@ -12,7 +13,11 @@ export function useSplitPane() {
         const parsed = parseFloat(saved)
         if (!isNaN(parsed) && parsed >= 15 && parsed <= 85) {
           splitPercent.value = parsed
+        } else {
+          splitPercent.value = 40
         }
+      } else {
+        splitPercent.value = 40
       }
     } catch {}
   }
@@ -32,10 +37,17 @@ export function useSplitPane() {
   }
 
   function onDrag(event: MouseEvent | TouchEvent) {
-    if (!isDragging.value || !containerRef.value) return
+    if (!isDragging.value) return
+
+    const container =
+      containerRef.value ||
+      (typeof document !== 'undefined'
+        ? (document.querySelector('main') as HTMLElement | null)
+        : null)
+    if (!container) return
 
     const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX
-    const rect = containerRef.value.getBoundingClientRect()
+    const rect = container.getBoundingClientRect()
     const containerWidth = rect.width
 
     if (containerWidth <= 0) return

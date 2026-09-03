@@ -21,7 +21,6 @@ const {
   setSqlCode,
   setCursorPosition,
   convertSchemaToNewTab,
-  parseSchema,
 } = schemaStore
 
 const { toggleConsole, openConsole, addLog } = useEditorConsole()
@@ -41,14 +40,6 @@ let resizeObserver: ResizeObserver | null = null
 const currentLanguageDef = computed(() => {
   return LANGUAGE_OPTIONS.find(l => l.id === activeLanguage.value) || LANGUAGE_OPTIONS[0]
 })
-
-let parseTimeout: NodeJS.Timeout | null = null
-function debouncedParse(code: string, lang: SupportedLanguage) {
-  if (parseTimeout) clearTimeout(parseTimeout)
-  parseTimeout = setTimeout(() => {
-    parseSchema(code, lang)
-  }, 300)
-}
 if (typeof window !== 'undefined' && !window.MonacoEnvironment) {
   window.MonacoEnvironment = {
     getWorker() {
@@ -188,6 +179,13 @@ async function initMonaco() {
       toggleConsole()
     })
 
+    // Register Cmd+K / Ctrl+K command in Monaco Editor
+    editorInstance.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('schemacraft:open-search'))
+      }
+    })
+
     const model = editorInstance.getModel()
     if (model) {
       validateSql(sqlCode.value, monaco, model, activeLanguage.value)
@@ -208,7 +206,6 @@ async function initMonaco() {
         const currentModel = editorInstance.getModel()
         if (currentModel) {
           debouncedValidate(val, monaco, currentModel, 300, activeLanguage.value)
-          debouncedParse(val, activeLanguage.value)
         }
       }
     })

@@ -56,7 +56,7 @@ export default tseslint.config(
       'vue/require-default-prop': 'off',
       'no-empty': ['error', { allowEmptyCatch: true }],
       'no-undef': 'off', // Handled by TypeScript compiler
-      'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+      'no-console': ['warn', { allow: ['warn', 'error', 'info', 'time', 'timeEnd'] }],
     },
   }
 )

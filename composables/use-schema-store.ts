@@ -254,7 +254,15 @@ export interface SampleFileInfo {
   content: string
 }
 
+export interface ParseResponse {
+  success: boolean
+  tables?: CompiledTable[]
+  relations?: CompiledRelation[]
+  error?: { message?: string; cursorpos?: number; isMysql?: boolean } | null
+}
+
 const sampleFiles = ref<SampleFileInfo[]>([])
+const inFlightParseRequests = new Map<string, Promise<ParseResponse>>()
 
 export function useSchemaStore() {
   // Currently active tab
@@ -606,12 +614,15 @@ export function useSchemaStore() {
   }
 
   // Parse SQL, DBML or Prisma into structured AST table/relation graph on Nitro
-  async function parseSchema(code: string, langOverride?: SupportedLanguage) {
-    if (!activeTab.value) return
+  async function parseSchema(
+    code: string,
+    langOverride?: SupportedLanguage
+  ): Promise<ParseResponse> {
+    if (!activeTab.value) return { success: true, tables: [], relations: [], error: null }
 
     const targetTabId = activeTabId.value
     const targetTab = tabs.value.find(t => t.id === targetTabId)
-    if (!targetTab) return
+    if (!targetTab) return { success: true, tables: [], relations: [], error: null }
 
     const language = langOverride || targetTab.language || detectLanguageFromCode(code)
 
@@ -619,7 +630,7 @@ export function useSchemaStore() {
       targetTab.parsedTables = []
       targetTab.parsedRelations = []
       parseWarning.value = null
-      return
+      return { success: true, tables: [], relations: [], error: null }
     }
 
     // ---------------------------------------------------------------------------
@@ -651,7 +662,12 @@ export function useSchemaStore() {
         `exceeds the ${Math.round(MAX_DDL_BYTES / 1024)}KB parser limit. ` +
         `Diagram may not render. Try removing extra comments or splitting the file.`
       isParsing.value = false
-      return
+      return {
+        success: false,
+        tables: targetTab.parsedTables,
+        relations: targetTab.parsedRelations,
+        error: { message: parseWarning.value },
+      }
     }
 
     parseWarning.value = null
@@ -663,37 +679,59 @@ export function useSchemaStore() {
     if (cached) {
       targetTab.parsedTables = cached.tables
       targetTab.parsedRelations = cached.relations
-      return
+      return {
+        success: true,
+        tables: cached.tables,
+        relations: cached.relations,
+        error: null,
+      }
     }
 
     // ---------------------------------------------------------------------------
-    // 4. Fetch from Nitro / WASM parser, then cache the result.
+    // 4. In-flight request deduplication — reuse pending request if already in progress
+    // ---------------------------------------------------------------------------
+    const reqKey = `${targetTabId}::${language}::${codeToSend}`
+    if (inFlightParseRequests.has(reqKey)) {
+      return await inFlightParseRequests.get(reqKey)!
+    }
+
+    // ---------------------------------------------------------------------------
+    // 5. Fetch from Nitro / WASM parser, then cache the result.
     // ---------------------------------------------------------------------------
     isParsing.value = true
-    try {
-      const res = await $fetch<{
-        success: boolean
-        tables: CompiledTable[]
-        relations: CompiledRelation[]
-      }>('/api/schema/parse', {
-        method: 'POST',
-        body: { sql: codeToSend, language },
-      })
-      if (res && res.success) {
-        const entry: ParseCacheEntry = {
-          tables: res.tables || [],
-          relations: res.relations || [],
-          cachedAt: Date.now(),
+    const parsePromise = (async (): Promise<ParseResponse> => {
+      try {
+        const res = await $fetch<ParseResponse>('/api/schema/parse', {
+          method: 'POST',
+          body: { sql: codeToSend, language },
+        })
+        if (res && res.success) {
+          const entry: ParseCacheEntry = {
+            tables: res.tables || [],
+            relations: res.relations || [],
+            cachedAt: Date.now(),
+          }
+          targetTab.parsedTables = entry.tables
+          targetTab.parsedRelations = entry.relations
+          setCached(targetTabId, language, codeToSend, entry)
         }
-        targetTab.parsedTables = entry.tables
-        targetTab.parsedRelations = entry.relations
-        setCached(targetTabId, language, codeToSend, entry)
+        return res || { success: true, tables: [], relations: [], error: null }
+      } catch (err: unknown) {
+        console.warn('Schema parse error:', err)
+        return {
+          success: false,
+          tables: [],
+          relations: [],
+          error: { message: err instanceof Error ? err.message : String(err) },
+        }
+      } finally {
+        isParsing.value = false
+        inFlightParseRequests.delete(reqKey)
       }
-    } catch (err) {
-      console.warn('Schema parse error:', err)
-    } finally {
-      isParsing.value = false
-    }
+    })()
+
+    inFlightParseRequests.set(reqKey, parsePromise)
+    return await parsePromise
   }
 
   function setSqlCode(newCode: string) {

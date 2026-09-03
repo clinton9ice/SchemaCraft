@@ -142,7 +142,7 @@ function onRowMouseLeave() {
           :id="`${data.name}.${col.name}-target`"
           type="target"
           :position="Position.Left"
-          class="!w-2 !h-2 !-left-1 !bg-[var(--accent)] !border !border-[var(--node-header)] z-10"
+          class="!w-0 !h-0 !-left-0.5 !opacity-0 !border-0 !bg-transparent z-10"
         />
 
         <div

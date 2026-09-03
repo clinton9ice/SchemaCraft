@@ -4,15 +4,8 @@ const { saveSqlFile, openSqlFile } = useFileSystem()
 const { toggleConsole } = useEditorConsole()
 const { validateUploadFiles, setReuploadHandler } = useUploadGuard()
 const { startUploadQueue } = useSchemaUploader()
-const {
-  splitPercent,
-  isDragging,
-  mobileView,
-  containerRef,
-  startDragging,
-  resetSplit,
-  toggleMobileView,
-} = useSplitPane()
+const { splitPercent, isDragging, mobileView, startDragging, resetSplit, toggleMobileView } =
+  useSplitPane()
 
 const isDraggingFiles = ref(false)
 
@@ -25,6 +18,13 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
     e.preventDefault()
     toggleConsole()
+  }
+  // Cmd + K or Ctrl + K opens the canvas table search
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('schemacraft:open-search'))
+    }
   }
 }
 

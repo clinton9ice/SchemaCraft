@@ -1,4 +1,6 @@
-export default defineEventHandler(() => {
+import { defineEventHandler } from 'h3'
+
+const handler = () => {
   return [
     {
       id: 'blog',
@@ -231,4 +233,13 @@ model Project {
 }`,
     },
   ]
-})
+}
+
+export default typeof defineCachedEventHandler === 'function'
+  ? defineCachedEventHandler(handler, {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      swr: true,
+      name: 'schema-samples',
+      getKey: () => 'all',
+    })
+  : defineEventHandler(handler)
