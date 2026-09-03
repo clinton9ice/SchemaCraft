@@ -31,8 +31,8 @@ It is a "Code-to-Diagram" editor. You write PostgreSQL/Standard SQL, DBML, or Pr
 1. **Clone the project:**
 
    ```bash
-   git clone https://github.com/yourusername/database-diagram-visual-editor.git
-   cd database-diagram-visual-editor
+   git clone https://github.com/clinton9ice/SchemaCraft
+   cd SchemaCraft
    ```
 
 2. **Install dependencies:**
