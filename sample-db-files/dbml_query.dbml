@@ -1,0 +1,658 @@
+// COMPLEX FINTECH SYSTEM / DBML
+Project fintech_core { database_type: 'PostgreSQL' Note: 'Synthetic interconnected fintech schema' }
+
+Table users {
+  id bigint [pk]
+  email varchar
+  phone varchar
+  password_hash varchar
+  status varchar
+  country_code varchar
+  created_at timestamp
+  updated_at timestamp
+}
+
+Table user_profiles {
+  id bigint [pk]
+  user_id bigint
+  first_name varchar
+  last_name varchar
+  date_of_birth varchar
+  occupation varchar
+  risk_tier varchar
+  created_at timestamp
+}
+
+Table kyc_profiles {
+  id bigint [pk]
+  user_id bigint
+  status varchar
+  provider varchar
+  external_reference varchar
+  verified_at timestamp
+  reviewed_at timestamp
+}
+
+Table kyc_documents {
+  id bigint [pk]
+  kyc_id bigint
+  document_type varchar
+  document_number_hash varchar
+  storage_key varchar
+  status varchar
+  expires_at timestamp
+}
+
+Table user_addresses {
+  id bigint [pk]
+  user_id bigint
+  address_type varchar
+  line1 varchar
+  city varchar
+  state varchar
+  postal_code varchar
+  country_code varchar
+}
+
+Table devices {
+  id bigint [pk]
+  user_id bigint
+  device_fingerprint varchar
+  platform varchar
+  app_version varchar
+  trusted boolean
+  last_seen_at timestamp
+}
+
+Table sessions {
+  id bigint [pk]
+  user_id bigint
+  device_id bigint
+  token_hash varchar
+  expires_at timestamp
+  revoked_at varchar
+  created_at timestamp
+}
+
+Table roles {
+  id bigint [pk]
+  name varchar
+  description varchar
+  created_at timestamp
+}
+
+Table user_roles {
+  id bigint [pk]
+  user_id bigint
+  role_id bigint
+  assigned_at varchar
+}
+
+Table accounts {
+  id bigint [pk]
+  user_id bigint
+  account_number varchar
+  account_type varchar
+  currency_id bigint
+  status varchar
+  created_at timestamp
+}
+
+Table account_members {
+  id bigint [pk]
+  account_id bigint
+  user_id bigint
+  member_role varchar
+  created_at timestamp
+}
+
+Table wallets {
+  id bigint [pk]
+  account_id bigint
+  wallet_type varchar
+  status varchar
+  created_at timestamp
+}
+
+Table wallet_balances {
+  id bigint [pk]
+  wallet_id bigint
+  available decimal
+  pending decimal
+  ledger decimal
+  updated_at timestamp
+}
+
+Table currencies {
+  id bigint [pk]
+  code varchar
+  name varchar
+  minor_unit varchar
+  is_active varchar
+}
+
+Table exchange_rates {
+  id bigint [pk]
+  base_currency_id bigint
+  quote_currency_id bigint
+  rate decimal
+  provider varchar
+  observed_at timestamp
+}
+
+Table payment_methods {
+  id bigint [pk]
+  user_id bigint
+  method_type varchar
+  provider varchar
+  token_reference varchar
+  status varchar
+  created_at timestamp
+}
+
+Table cards {
+  id bigint [pk]
+  user_id bigint
+  account_id bigint
+  last4 varchar
+  brand varchar
+  status varchar
+  issued_at timestamp
+  expires_at timestamp
+}
+
+Table card_transactions {
+  id bigint [pk]
+  card_id bigint
+  merchant_id bigint
+  transaction_id bigint
+  amount decimal
+  currency_id bigint
+  status varchar
+  posted_at timestamp
+}
+
+Table merchants {
+  id bigint [pk]
+  legal_name varchar
+  display_name varchar
+  category_code varchar
+  country_code varchar
+  status varchar
+  created_at timestamp
+}
+
+Table merchant_accounts {
+  id bigint [pk]
+  merchant_id bigint
+  account_id bigint
+  settlement_currency_id bigint
+  status varchar
+}
+
+Table beneficiaries {
+  id bigint [pk]
+  user_id bigint
+  name varchar
+  account_number_hash varchar
+  bank_code varchar
+  country_code varchar
+  status varchar
+}
+
+Table transfers {
+  id bigint [pk]
+  user_id bigint
+  source_account_id bigint
+  beneficiary_id bigint
+  amount decimal
+  currency_id bigint
+  status varchar
+  reference varchar
+  created_at timestamp
+}
+
+Table transfer_routes {
+  id bigint [pk]
+  transfer_id bigint
+  rail varchar
+  provider varchar
+  route_status varchar
+  provider_reference varchar
+}
+
+Table transactions {
+  id bigint [pk]
+  account_id bigint
+  user_id bigint
+  merchant_id bigint
+  type varchar
+  direction varchar
+  amount decimal
+  currency_id bigint
+  status varchar
+  reference varchar
+  created_at timestamp
+}
+
+Table transaction_entries {
+  id bigint [pk]
+  transaction_id bigint
+  ledger_account_id bigint
+  entry_type varchar
+  amount decimal
+  currency_id bigint
+  created_at timestamp
+}
+
+Table ledger_accounts {
+  id bigint [pk]
+  account_id bigint
+  code varchar
+  name varchar
+  account_class varchar
+  currency_id bigint
+  status varchar
+}
+
+Table ledger_entries {
+  id bigint [pk]
+  ledger_account_id bigint
+  transaction_id bigint
+  debit varchar
+  credit varchar
+  balance_after varchar
+  created_at timestamp
+}
+
+Table fees {
+  id bigint [pk]
+  transaction_id bigint
+  fee_rule_id bigint
+  amount decimal
+  currency_id bigint
+  status varchar
+}
+
+Table fee_rules {
+  id bigint [pk]
+  name varchar
+  fee_type varchar
+  rate decimal
+  flat_amount decimal
+  currency_id bigint
+  active_from timestamp
+  active_to timestamp
+}
+
+Table refunds {
+  id bigint [pk]
+  transaction_id bigint
+  amount decimal
+  currency_id bigint
+  reason varchar
+  status varchar
+  created_at timestamp
+}
+
+Table chargebacks {
+  id bigint [pk]
+  transaction_id bigint
+  card_transaction_id bigint
+  reason_code varchar
+  amount decimal
+  status varchar
+  opened_at timestamp
+  resolved_at timestamp
+}
+
+Table settlements {
+  id bigint [pk]
+  merchant_id bigint
+  settlement_date timestamp
+  gross_amount decimal
+  fee_amount decimal
+  net_amount decimal
+  currency_id bigint
+  status varchar
+}
+
+Table settlement_items {
+  id bigint [pk]
+  settlement_id bigint
+  transaction_id bigint
+  gross_amount decimal
+  fee_amount decimal
+  net_amount decimal
+}
+
+Table invoices {
+  id bigint [pk]
+  user_id bigint
+  merchant_id bigint
+  invoice_number varchar
+  subtotal decimal
+  tax decimal
+  total decimal
+  currency_id bigint
+  status varchar
+  due_at timestamp
+}
+
+Table invoice_items {
+  id bigint [pk]
+  invoice_id bigint
+  description varchar
+  quantity varchar
+  unit_price decimal
+  line_total decimal
+}
+
+Table subscriptions {
+  id bigint [pk]
+  user_id bigint
+  merchant_id bigint
+  plan_code varchar
+  amount decimal
+  currency_id bigint
+  status varchar
+  started_at timestamp
+  next_billing_at timestamp
+}
+
+Table subscription_events {
+  id bigint [pk]
+  subscription_id bigint
+  event_type varchar
+  amount decimal
+  currency_id bigint
+  occurred_at timestamp
+}
+
+Table loans {
+  id bigint [pk]
+  user_id bigint
+  principal decimal
+  currency_id bigint
+  interest_rate decimal
+  term_months varchar
+  status varchar
+  originated_at timestamp
+}
+
+Table loan_applications {
+  id bigint [pk]
+  loan_id bigint
+  user_id bigint
+  requested_amount decimal
+  employment_status varchar
+  decision varchar
+  submitted_at timestamp
+}
+
+Table loan_repayments {
+  id bigint [pk]
+  loan_id bigint
+  schedule_id bigint
+  amount decimal
+  principal_amount decimal
+  interest_amount decimal
+  paid_at timestamp
+  status varchar
+}
+
+Table loan_schedules {
+  id bigint [pk]
+  loan_id bigint
+  installment_number varchar
+  due_date timestamp
+  principal_due decimal
+  interest_due decimal
+  status varchar
+}
+
+Table credit_scores {
+  id bigint [pk]
+  user_id bigint
+  score decimal
+  provider varchar
+  score_band varchar
+  calculated_at timestamp
+}
+
+Table limits {
+  id bigint [pk]
+  user_id bigint
+  account_id bigint
+  limit_type varchar
+  amount decimal
+  currency_id bigint
+  period varchar
+  active boolean
+}
+
+Table limit_events {
+  id bigint [pk]
+  limit_id bigint
+  transaction_id bigint
+  previous_used decimal
+  new_used decimal
+  created_at timestamp
+}
+
+Table fraud_cases {
+  id bigint [pk]
+  user_id bigint
+  transaction_id bigint
+  risk_score varchar
+  case_status varchar
+  reason varchar
+  opened_at timestamp
+  closed_at timestamp
+}
+
+Table fraud_events {
+  id bigint [pk]
+  case_id bigint
+  event_type varchar
+  signal varchar
+  score decimal
+  metadata json
+  created_at timestamp
+}
+
+Table risk_rules {
+  id bigint [pk]
+  name varchar
+  rule_expression varchar
+  severity varchar
+  enabled boolean
+  created_at timestamp
+}
+
+Table risk_decisions {
+  id bigint [pk]
+  transaction_id bigint
+  rule_id bigint
+  decision varchar
+  score decimal
+  reason varchar
+  created_at timestamp
+}
+
+Table audit_logs {
+  id bigint [pk]
+  user_id bigint
+  actor_type varchar
+  action varchar
+  entity_type varchar
+  entity_id bigint
+  metadata json
+  created_at timestamp
+}
+
+Table webhooks {
+  id bigint [pk]
+  merchant_id bigint
+  event_type varchar
+  endpoint varchar
+  payload json
+  delivery_status varchar
+  attempts varchar
+  created_at timestamp
+}
+
+Table api_keys {
+  id bigint [pk]
+  user_id bigint
+  merchant_id bigint
+  key_prefix varchar
+  secret_hash varchar
+  scopes varchar
+  revoked_at varchar
+  created_at timestamp
+}
+
+Table notifications {
+  id bigint [pk]
+  user_id bigint
+  channel varchar
+  template_code varchar
+  subject varchar
+  status varchar
+  sent_at timestamp
+  created_at timestamp
+}
+
+Table support_tickets {
+  id bigint [pk]
+  user_id bigint
+  category varchar
+  priority varchar
+  status varchar
+  subject varchar
+  created_at timestamp
+}
+
+Table ticket_messages {
+  id bigint [pk]
+  ticket_id bigint
+  sender_user_id bigint
+  body varchar
+  created_at timestamp
+}
+
+Table reconciliation_runs {
+  id bigint [pk]
+  account_id bigint
+  provider varchar
+  run_date timestamp
+  status varchar
+  matched_count varchar
+  unmatched_count varchar
+}
+
+Table reconciliation_items {
+  id bigint [pk]
+  run_id bigint
+  transaction_id bigint
+  external_reference varchar
+  external_amount decimal
+  internal_amount decimal
+  status varchar
+}
+
+Ref: users.id < user_profiles.user_id
+Ref: users.id < kyc_profiles.user_id
+Ref: kyc_profiles.id < kyc_documents.kyc_id
+Ref: users.id < user_addresses.user_id
+Ref: users.id < devices.user_id
+Ref: users.id < sessions.user_id
+Ref: devices.id < sessions.device_id
+Ref: users.id < user_roles.user_id
+Ref: roles.id < user_roles.role_id
+Ref: users.id < accounts.user_id
+Ref: currencies.id < accounts.currency_id
+Ref: accounts.id < account_members.account_id
+Ref: users.id < account_members.user_id
+Ref: accounts.id < wallets.account_id
+Ref: wallets.id < wallet_balances.wallet_id
+Ref: currencies.id < exchange_rates.base_currency_id
+Ref: currencies.id < exchange_rates.quote_currency_id
+Ref: users.id < payment_methods.user_id
+Ref: users.id < cards.user_id
+Ref: accounts.id < cards.account_id
+Ref: cards.id < card_transactions.card_id
+Ref: merchants.id < card_transactions.merchant_id
+Ref: transactions.id < card_transactions.transaction_id
+Ref: currencies.id < card_transactions.currency_id
+Ref: merchants.id < merchant_accounts.merchant_id
+Ref: accounts.id < merchant_accounts.account_id
+Ref: currencies.id < merchant_accounts.settlement_currency_id
+Ref: users.id < beneficiaries.user_id
+Ref: users.id < transfers.user_id
+Ref: accounts.id < transfers.source_account_id
+Ref: beneficiaries.id < transfers.beneficiary_id
+Ref: currencies.id < transfers.currency_id
+Ref: transfers.id < transfer_routes.transfer_id
+Ref: accounts.id < transactions.account_id
+Ref: users.id < transactions.user_id
+Ref: merchants.id < transactions.merchant_id
+Ref: currencies.id < transactions.currency_id
+Ref: transactions.id < transaction_entries.transaction_id
+Ref: ledger_accounts.id < transaction_entries.ledger_account_id
+Ref: currencies.id < transaction_entries.currency_id
+Ref: accounts.id < ledger_accounts.account_id
+Ref: currencies.id < ledger_accounts.currency_id
+Ref: ledger_accounts.id < ledger_entries.ledger_account_id
+Ref: transactions.id < ledger_entries.transaction_id
+Ref: transactions.id < fees.transaction_id
+Ref: fee_rules.id < fees.fee_rule_id
+Ref: currencies.id < fees.currency_id
+Ref: currencies.id < fee_rules.currency_id
+Ref: transactions.id < refunds.transaction_id
+Ref: currencies.id < refunds.currency_id
+Ref: transactions.id < chargebacks.transaction_id
+Ref: card_transactions.id < chargebacks.card_transaction_id
+Ref: merchants.id < settlements.merchant_id
+Ref: currencies.id < settlements.currency_id
+Ref: settlements.id < settlement_items.settlement_id
+Ref: transactions.id < settlement_items.transaction_id
+Ref: users.id < invoices.user_id
+Ref: merchants.id < invoices.merchant_id
+Ref: currencies.id < invoices.currency_id
+Ref: invoices.id < invoice_items.invoice_id
+Ref: users.id < subscriptions.user_id
+Ref: merchants.id < subscriptions.merchant_id
+Ref: currencies.id < subscriptions.currency_id
+Ref: subscriptions.id < subscription_events.subscription_id
+Ref: currencies.id < subscription_events.currency_id
+Ref: users.id < loans.user_id
+Ref: currencies.id < loans.currency_id
+Ref: loans.id < loan_applications.loan_id
+Ref: users.id < loan_applications.user_id
+Ref: loans.id < loan_repayments.loan_id
+Ref: loan_schedules.id < loan_repayments.schedule_id
+Ref: loans.id < loan_schedules.loan_id
+Ref: users.id < credit_scores.user_id
+Ref: users.id < limits.user_id
+Ref: accounts.id < limits.account_id
+Ref: currencies.id < limits.currency_id
+Ref: limits.id < limit_events.limit_id
+Ref: transactions.id < limit_events.transaction_id
+Ref: users.id < fraud_cases.user_id
+Ref: transactions.id < fraud_cases.transaction_id
+Ref: fraud_cases.id < fraud_events.case_id
+Ref: transactions.id < risk_decisions.transaction_id
+Ref: risk_rules.id < risk_decisions.rule_id
+Ref: users.id < audit_logs.user_id
+Ref: merchants.id < webhooks.merchant_id
+Ref: users.id < api_keys.user_id
+Ref: merchants.id < api_keys.merchant_id
+Ref: users.id < notifications.user_id
+Ref: users.id < support_tickets.user_id
+Ref: support_tickets.id < ticket_messages.ticket_id
+Ref: users.id < ticket_messages.sender_user_id
+Ref: accounts.id < reconciliation_runs.account_id
+Ref: reconciliation_runs.id < reconciliation_items.run_id
+Ref: transactions.id < reconciliation_items.transaction_id
