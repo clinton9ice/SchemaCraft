@@ -19,6 +19,10 @@ export interface SampleFileInfo {
 
 let cachedSampleFiles: SampleFileInfo[] | null = null
 
+export function clearSampleFilesCache(): void {
+  cachedSampleFiles = null
+}
+
 function processRawFile(fileName: string, rawContent: string): SampleFileInfo | null {
   if (!fileName || fileName.startsWith('.') || fileName === 'README.md') {
     return null
@@ -65,10 +69,33 @@ const handler = async (): Promise<SampleFileInfo[]> => {
     return cachedSampleFiles
   }
   console.time('Reading sample files from serverAssets')
-  console.info('[sample-files:start] Reading sample files from serverAssets')
   const items: SampleFileInfo[] = []
 
-  // 1. Try Nitro serverAssets via useStorage (standard for Vercel/serverless builds)
+  // 1. Try pre-compiled public manifest (fastest on Vercel & local builds)
+  const manifestCandidates = [
+    path.resolve(process.cwd(), 'public/sample-db-files/manifest.json'),
+    path.resolve(process.cwd(), '.output/public/sample-db-files/manifest.json'),
+    path.resolve(
+      path.dirname(new URL(import.meta.url).pathname),
+      '../../public/sample-db-files/manifest.json'
+    ),
+  ]
+  for (const mp of manifestCandidates) {
+    if (fs.existsSync(mp)) {
+      try {
+        const raw = fs.readFileSync(mp, 'utf8')
+        const parsed = JSON.parse(raw) as SampleFileInfo[]
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.info(`[sample-files:manifest] Loaded ${parsed.length} files from ${mp}`)
+          cachedSampleFiles = parsed
+          console.timeEnd('Reading sample files from serverAssets')
+          return parsed
+        }
+      } catch {}
+    }
+  }
+
+  // 2. Try Nitro serverAssets via useStorage (standard for Vercel/serverless builds)
   try {
     if (typeof useStorage === 'function') {
       const storage = useStorage('assets:samples')

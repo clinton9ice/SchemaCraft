@@ -1,4 +1,9 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { syncSampleFiles } from './scripts/sync-samples.mjs'
+
+// Synchronize sample files to public/sample-db-files on dev and build
+syncSampleFiles()
+
 export default defineNuxtConfig({
   compatibilityDate: '2024-11-01',
   devtools: { enabled: false },

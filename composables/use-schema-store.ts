@@ -605,11 +605,21 @@ export function useSchemaStore() {
   async function fetchSampleFiles() {
     try {
       const files = await $fetch<SampleFileInfo[]>('/api/sample-files')
-      if (files && files.length) {
+      if (Array.isArray(files) && files.length > 0) {
         sampleFiles.value = files
+        return
       }
-    } catch (err) {
-      console.warn('Could not fetch sample files from Nitro backend:', err)
+    } catch (apiErr) {
+      console.warn('[sample-files:api-fallback] Fetching from static public CDN...', apiErr)
+    }
+
+    try {
+      const staticFiles = await $fetch<SampleFileInfo[]>('/sample-db-files/manifest.json')
+      if (Array.isArray(staticFiles) && staticFiles.length > 0) {
+        sampleFiles.value = staticFiles
+      }
+    } catch (staticErr) {
+      console.warn('Could not fetch sample files from static public manifest:', staticErr)
     }
   }
 
