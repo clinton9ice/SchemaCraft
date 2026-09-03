@@ -3,6 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync:samples": "node scripts/sync-samples.mjs",
+    "prebuild": "node scripts/sync-samples.mjs",
+    "predev": "node scripts/sync-samples.mjs",
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",

@@ -15,6 +15,7 @@ export default tseslint.config(
       'package-lock.json',
       '**/*.d.ts',
       'sample-db-files/**',
+      'public/**',
     ],
   },
   js.configs.recommended,
@@ -33,7 +34,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.{ts,js,vue}'],
+    files: ['**/*.{ts,js,mjs,vue}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': [
