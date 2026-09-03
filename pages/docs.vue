@@ -39,7 +39,6 @@ function scrollTo(id: string) {
   }
 }
 
-// Scroll spy: Update active section on scroll
 function handleScroll() {
   const sectionIds = sections.map(s => s.id)
   const scrollPos = scrollContainerRef.value?.scrollTop || 0
@@ -77,7 +76,6 @@ onBeforeUnmount(() => {
     ref="scrollContainerRef"
     class="h-screen w-screen bg-[#0d1117] text-neutral-200 font-public-sans flex flex-col overflow-y-auto overflow-x-hidden scroll-smooth select-text"
   >
-    <!-- Top Navigation Header (Sticky) -->
     <header
       class="h-14 border-b border-[#2d2d30] bg-[#161b22]/95 px-6 flex items-center justify-between sticky top-0 z-40 backdrop-blur-md shrink-0 select-none"
     >
@@ -124,9 +122,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <!-- Main Content Layout -->
     <div class="flex-1 max-w-7xl w-full mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-      <!-- Left Sticky Sidebar Nav (Scroll Spy) -->
       <aside class="hidden md:block col-span-1">
         <div
           class="sticky top-20 space-y-1.5 text-xs font-medium bg-[#161b22]/50 border border-[#2d2d30] p-2.5 rounded-xl shadow-lg"
@@ -157,10 +153,8 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <!-- Main Docs Articles Area -->
       <main class="col-span-1 md:col-span-3 space-y-16 pb-32">
-        <!-- 1. Getting Started Section -->
-        <section id="getting-started" class="space-y-5 pt-4 scroll-mt-20">
+        <section id="getting-started" class="space-y-6 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
               <span>01 / 09</span>
@@ -175,6 +169,113 @@ onBeforeUnmount(() => {
               designed to transform raw DDL SQL, ORM definitions, and heterogeneous database dumps
               into interactive, production-ready Entity-Relationship diagrams in real time.
             </p>
+          </div>
+
+          <div class="space-y-6">
+            <div
+              class="bg-[#161b22] border border-[#2d2d30] rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <div
+                class="bg-[#12161f] px-4 py-2.5 border-b border-[#2d2d30] flex items-center justify-between"
+              >
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-rose-500/80" />
+                    <div class="w-3 h-3 rounded-full bg-amber-500/80" />
+                    <div class="w-3 h-3 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <span class="text-xs font-mono text-neutral-400 ml-2 font-medium"
+                    >SchemaCraft Live Studio Demonstration</span
+                  >
+                </div>
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                >
+                  Interactive Demo
+                </span>
+              </div>
+              <div class="p-2 bg-[#090d13]">
+                <img
+                  src="/demo.gif"
+                  alt="SchemaCraft Live Interactive Studio Demonstration"
+                  class="w-full h-auto rounded-xl object-contain border border-[#2d2d30]"
+                  loading="lazy"
+                />
+              </div>
+              <div class="p-4 bg-[#161b22] border-t border-[#2d2d30] space-y-1">
+                <span class="text-xs font-semibold text-white block"
+                  >Real-Time DDL Compilation & Interactive Routing</span
+                >
+                <p class="text-xs text-neutral-300 leading-relaxed font-normal">
+                  Write schema DDL in the Monaco editor. SchemaCraft's WebAssembly PostgreSQL parser
+                  continuously validates syntax, computes relational dependencies, and draws
+                  interactive Vue Flow nodes with automatic ELK layered layout.
+                </p>
+              </div>
+            </div>
+
+            <div
+              class="bg-[#161b22] border border-[#2d2d30] rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <div
+                class="bg-[#12161f] px-4 py-2.5 border-b border-[#2d2d30] flex items-center justify-between"
+              >
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1.5">
+                    <div class="w-3 h-3 rounded-full bg-rose-500/80" />
+                    <div class="w-3 h-3 rounded-full bg-amber-500/80" />
+                    <div class="w-3 h-3 rounded-full bg-emerald-500/80" />
+                  </div>
+                  <span class="text-xs font-mono text-neutral-400 ml-2 font-medium"
+                    >Dual Split-Pane Studio Architecture</span
+                  >
+                </div>
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                >
+                  Workspace Layout
+                </span>
+              </div>
+              <div class="p-2 bg-[#090d13]">
+                <img
+                  src="/editor-layout.png"
+                  alt="SchemaCraft Dual Split-Pane Studio Layout"
+                  class="w-full h-auto rounded-xl object-contain border border-[#2d2d30]"
+                  loading="lazy"
+                />
+              </div>
+              <div
+                class="p-4 bg-[#161b22] border-t border-[#2d2d30] grid grid-cols-1 sm:grid-cols-3 gap-3"
+              >
+                <div class="space-y-1">
+                  <span class="text-xs font-semibold text-blue-400 block font-mono"
+                    >01 / Monaco Editor</span
+                  >
+                  <p class="text-[11px] text-neutral-300 leading-relaxed font-normal">
+                    Intelligent code editor on the left pane with syntax highlighting,
+                    auto-complete, and line-level diagnostic markers.
+                  </p>
+                </div>
+                <div class="space-y-1">
+                  <span class="text-xs font-semibold text-amber-400 block font-mono"
+                    >02 / Draggable Divider</span
+                  >
+                  <p class="text-[11px] text-neutral-300 leading-relaxed font-normal">
+                    Flexible split-pane divider with a 200px safety minimum to customize code vs
+                    canvas screen real estate.
+                  </p>
+                </div>
+                <div class="space-y-1">
+                  <span class="text-xs font-semibold text-emerald-400 block font-mono"
+                    >03 / Vue Flow Canvas</span
+                  >
+                  <p class="text-[11px] text-neutral-300 leading-relaxed font-normal">
+                    Interactive diagram canvas with draggable table nodes, constraint badges, smooth
+                    relationship routing, and minimap.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -257,7 +358,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 2. Smart Ingestion & Queue Section -->
         <section id="smart-ingestion" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -387,7 +487,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 3. Universal SQL Dialect Engine Section -->
         <section id="dialect-engine" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -451,7 +550,6 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <!-- Transformation Mapping Table -->
             <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl overflow-hidden shadow-lg">
               <div
                 class="px-4 py-2.5 bg-[#12161f] border-b border-[#2d2d30] font-mono font-semibold text-neutral-200 flex items-center justify-between text-xs"
@@ -527,21 +625,17 @@ onBeforeUnmount(() => {
               </table>
             </div>
 
-            <!-- Casual User Prompt -->
             <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 space-y-2">
-              <span class="font-bold text-white text-sm block"
-                >Casual, Interactive Confirmation</span
-              >
+              <h5 class="font-bold text-white text-sm block capitalize">
+                Interactive confirmation prompt
+              </h5>
               <p class="text-base text-neutral-300 leading-relaxed font-normal">
                 When MySQL syntax is detected, SchemaCraft pauses the queue on that specific file
-                and asks:
-                <em class="text-white font-medium"
-                  >"Convert MySQL to PostgreSQL? This file has MySQL-specific syntax (like backticks
-                  or types) that PostgreSQL won't parse directly. We can convert it for you right
-                  now so your diagram displays without errors."</em
-                >
-                You can choose to <strong>Convert to PostgreSQL</strong> or
-                <strong>Skip file</strong> to keep your workflow in your control.
+                and asks: <strong>"Convert MySQL to PostgreSQL"?</strong> This file has
+                MySQL-specific syntax (like backticks or types) that PostgreSQL won't parse
+                directly. We can convert it for you right now so your diagram displays without
+                errors." You can choose to <strong>Convert to PostgreSQL</strong> or
+                <strong>Skip file</strong> to keep full control over your workflow.
               </p>
             </div>
           </div>
@@ -565,7 +659,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 4. Language Ecosystem Section -->
         <section id="language-ecosystem" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -583,9 +676,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="space-y-6">
-            <!-- Language Cards Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <!-- PostgreSQL -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -616,7 +707,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- MySQL / MariaDB -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -644,7 +734,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- DBML -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -676,7 +765,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- Prisma Schema -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -708,7 +796,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- Drizzle ORM -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -741,7 +828,6 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- TypeORM -->
               <div class="bg-[#161b22] border border-[#2d2d30] rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-sm text-white flex items-center gap-2">
@@ -795,7 +881,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 5. Multi-Tab Workspace & Collection.zip Section -->
         <section id="workspace-collection" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -887,7 +972,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 6. Export Suite Section -->
         <section id="export-suite" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -978,7 +1062,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 7. Platform Potentials & Roadmap Section -->
         <section id="platform-potentials" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -1016,8 +1099,8 @@ onBeforeUnmount(() => {
               </span>
               <p class="text-base text-neutral-300 leading-relaxed font-normal">
                 Direct read-only SSL connection pooling to live Postgres databases (Supabase, Neon,
-                AWS RDS, Neon, Tembo). Inspect live schemas, view table row count estimates, and
-                visualize production topologies with zero manual export.
+                AWS RDS, Tembo). Inspect live schemas, view table row count estimates, and visualize
+                production topologies with zero manual export.
               </p>
             </div>
 
@@ -1040,8 +1123,7 @@ onBeforeUnmount(() => {
                 <span>AI Schema Architect & Index Advisor</span>
               </span>
               <p class="text-base text-neutral-300 leading-relaxed font-normal">
-                Describe business logic in natural language (*"Build a multi-tenant billing system
-                with subscriptions, invoices, and payment intents"*) and have SchemaCraft generate
+                Describe business logic in natural language and have SchemaCraft generate
                 normalized, index-optimized schemas ready for production.
               </p>
             </div>
@@ -1066,7 +1148,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 8. Keyboard Shortcuts Section -->
         <section id="keyboard-shortcuts" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
@@ -1244,7 +1325,6 @@ onBeforeUnmount(() => {
           </div>
         </section>
 
-        <!-- 9. Theme Suite Section -->
         <section id="theme-suite" class="space-y-5 pt-4 scroll-mt-20">
           <div class="border-b border-[#2d2d30] pb-4">
             <div class="flex items-center gap-2 text-xs font-mono font-medium text-blue-400 mb-1">
