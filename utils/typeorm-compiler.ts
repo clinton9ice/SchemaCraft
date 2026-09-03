@@ -7,6 +7,7 @@ import type {
 } from '~/utils/sql-compiler'
 import { tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { tablesToPrisma } from '~/utils/prisma-compiler'
+import { sanitizeTypeORM } from '~/utils/ts-sanitizer'
 
 /**
  * Extracts database schema information from TypeORM entity files using ts-morph
@@ -18,7 +19,7 @@ export function compileTypeORM(input: string | string[]): CompiledSchema {
   if (Array.isArray(input)) {
     project.addSourceFilesAtPaths(input)
   } else {
-    project.createSourceFile('entity.ts', input, { overwrite: true })
+    project.createSourceFile('entity.ts', sanitizeTypeORM(input), { overwrite: true })
   }
 
   const tables: CompiledTable[] = []

@@ -8,6 +8,7 @@ import type {
 import { tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
 import { tablesToPrisma } from '~/utils/prisma-compiler'
 import { tablesToTypeORM } from '~/utils/typeorm-compiler'
+import { sanitizeDrizzle } from '~/utils/ts-sanitizer'
 
 interface DrizzleMethodCall {
   methodName: string
@@ -111,14 +112,61 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
   if (Array.isArray(input)) {
     project.addSourceFilesAtPaths(input)
   } else {
-    project.createSourceFile('schema.ts', input, { overwrite: true })
+    project.createSourceFile('schema.ts', sanitizeDrizzle(input), { overwrite: true })
   }
 
   const tables: CompiledTable[] = []
   const relations: CompiledRelation[] = []
   const tableVarNameToTableName = new Map<string, string>()
+  const tableVarToPropMap = new Map<string, Map<string, string>>()
 
   const sourceFiles = project.getSourceFiles()
+
+  function resolveColumnName(tableVarOrName: string, propOrCol: string): string {
+    const map = tableVarToPropMap.get(tableVarOrName)
+    if (map && map.has(propOrCol)) {
+      return map.get(propOrCol)!
+    }
+    // Also check if tableVarOrName was resolved to actual table name
+    const resolvedName = tableVarNameToTableName.get(tableVarOrName)
+    if (resolvedName && tableVarToPropMap.has(resolvedName)) {
+      const resolvedMap = tableVarToPropMap.get(resolvedName)
+      if (resolvedMap && resolvedMap.has(propOrCol)) {
+        return resolvedMap.get(propOrCol)!
+      }
+    }
+    return propOrCol
+  }
+
+  function extractTargetVarAndProp(node: Node): { targetVar: string; targetProp: string } | null {
+    if (Node.isArrowFunction(node) || Node.isFunctionExpression(node)) {
+      const body = node.getBody()
+      if (Node.isPropertyAccessExpression(body)) {
+        return {
+          targetVar: body.getExpression().getText(),
+          targetProp: body.getName(),
+        }
+      } else if (Node.isBlock(body)) {
+        for (const stmt of body.getStatements()) {
+          if (Node.isReturnStatement(stmt)) {
+            const expr = stmt.getExpression()
+            if (expr && Node.isPropertyAccessExpression(expr)) {
+              return {
+                targetVar: expr.getExpression().getText(),
+                targetProp: expr.getName(),
+              }
+            }
+          }
+        }
+      }
+    } else if (Node.isPropertyAccessExpression(node)) {
+      return {
+        targetVar: node.getExpression().getText(),
+        targetProp: node.getName(),
+      }
+    }
+    return null
+  }
 
   // First Pass: Find all table declarations (pgTable, mysqlTable, sqliteTable)
   for (const sourceFile of sourceFiles) {
@@ -143,11 +191,12 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
           tableName = firstArg.getLiteralValue()
         }
         tableVarNameToTableName.set(varName, tableName)
+        tableVarNameToTableName.set(tableName, tableName)
       }
     }
   }
 
-  // Second Pass: Parse table columns and foreign keys
+  // Second Pass: Parse table columns, property maps, inline .references(), and extraConfig foreignKey
   for (const sourceFile of sourceFiles) {
     const varStatements = sourceFile.getVariableStatements()
 
@@ -174,6 +223,7 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
         if (!Node.isObjectLiteralExpression(columnsObj)) continue
 
         const columns: CompiledColumn[] = []
+        const propToCol = new Map<string, string>()
 
         for (const prop of columnsObj.getProperties()) {
           if (!Node.isPropertyAssignment(prop)) continue
@@ -192,6 +242,9 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
           if (baseArgs.length > 0 && Node.isStringLiteral(baseArgs[0])) {
             dbColName = baseArgs[0].getLiteralValue()
           }
+
+          propToCol.set(propKeyName, dbColName)
+          propToCol.set(dbColName, dbColName)
 
           const configArg = baseArgs.length > 1 ? baseArgs[1] : undefined
           const sqlType = mapDrizzleBaseTypeToSql(baseFuncName, configArg)
@@ -241,19 +294,13 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
             } else if (mName === 'references') {
               if (method.args.length > 0) {
                 const refFn = method.args[0]
-                let targetVar = ''
-                let targetCol = 'id'
+                const extracted = extractTargetVarAndProp(refFn)
 
-                if (Node.isArrowFunction(refFn)) {
-                  const body = refFn.getBody()
-                  if (Node.isPropertyAccessExpression(body)) {
-                    targetVar = body.getExpression().getText()
-                    targetCol = body.getName()
-                  }
-                }
-
-                if (targetVar) {
+                if (extracted && extracted.targetVar) {
+                  const targetVar = extracted.targetVar
                   const targetTableName = tableVarNameToTableName.get(targetVar) || targetVar
+                  const targetCol = resolveColumnName(targetVar, extracted.targetProp)
+
                   isFk = true
                   refTarget = { table: targetTableName, column: targetCol }
                   constraintsList.push(`REFERENCES ${targetTableName}(${targetCol})`)
@@ -290,11 +337,239 @@ export function compileDrizzle(input: string | string[]): CompiledSchema {
           })
         }
 
+        tableVarToPropMap.set(varName, propToCol)
+        tableVarToPropMap.set(tableName, propToCol)
+
+        // Parse extraConfig callback (e.g. 3rd arg: (table) => ({ fk: foreignKey(...) }))
+        if (args.length >= 3) {
+          const extraConfigArg = args[2]
+          let configNode: Node | null = null
+
+          if (Node.isArrowFunction(extraConfigArg) || Node.isFunctionExpression(extraConfigArg)) {
+            const body = extraConfigArg.getBody()
+            if (Node.isObjectLiteralExpression(body) || Node.isArrayLiteralExpression(body)) {
+              configNode = body
+            } else if (Node.isParenthesizedExpression(body)) {
+              configNode = body.getExpression()
+            }
+          }
+
+          if (configNode) {
+            const calls: CallExpression[] = []
+            if (Node.isObjectLiteralExpression(configNode)) {
+              for (const p of configNode.getProperties()) {
+                if (Node.isPropertyAssignment(p)) {
+                  const initExpr = p.getInitializer()
+                  if (initExpr && Node.isCallExpression(initExpr)) calls.push(initExpr)
+                }
+              }
+            } else if (Node.isArrayLiteralExpression(configNode)) {
+              for (const el of configNode.getElements()) {
+                if (Node.isCallExpression(el)) calls.push(el)
+              }
+            }
+
+            for (const call of calls) {
+              const callText = call.getExpression().getText()
+              if (callText.includes('foreignKey')) {
+                const fkArgs = call.getArguments()
+                if (fkArgs.length > 0 && Node.isObjectLiteralExpression(fkArgs[0])) {
+                  const cfgObj = fkArgs[0]
+                  const colsProp = cfgObj.getProperty('columns')
+                  const fColsProp = cfgObj.getProperty('foreignColumns')
+
+                  let fromList: string[] = []
+                  let toTableTarget = ''
+                  let toList: string[] = []
+
+                  if (colsProp && Node.isPropertyAssignment(colsProp)) {
+                    const cInit = colsProp.getInitializer()
+                    if (cInit && Node.isArrayLiteralExpression(cInit)) {
+                      fromList = cInit.getElements().map(el => {
+                        const ext = extractTargetVarAndProp(el)
+                        const pName = ext ? ext.targetProp : el.getText().split('.').pop() || ''
+                        return resolveColumnName(varName, pName)
+                      })
+                    }
+                  }
+
+                  if (fColsProp && Node.isPropertyAssignment(fColsProp)) {
+                    const fcInit = fColsProp.getInitializer()
+                    if (fcInit && Node.isArrayLiteralExpression(fcInit)) {
+                      toList = fcInit.getElements().map(el => {
+                        const ext = extractTargetVarAndProp(el)
+                        if (ext) {
+                          toTableTarget =
+                            tableVarNameToTableName.get(ext.targetVar) || ext.targetVar
+                          return resolveColumnName(ext.targetVar, ext.targetProp)
+                        }
+                        return el.getText().split('.').pop() || ''
+                      })
+                    }
+                  }
+
+                  for (let i = 0; i < Math.min(fromList.length, toList.length); i++) {
+                    const fCol = fromList[i]
+                    const tCol = toList[i]
+                    if (fCol && tCol && toTableTarget) {
+                      const relKey = `${tableName}.${fCol}->${toTableTarget}.${tCol}`
+                      const exists = relations.some(r => `${r.from}->${r.to}` === relKey)
+                      if (!exists) {
+                        relations.push({
+                          from: `${tableName}.${fCol}`,
+                          to: `${toTableTarget}.${tCol}`,
+                          fromTable: tableName,
+                          fromColumn: fCol,
+                          toTable: toTableTarget,
+                          toColumn: tCol,
+                        })
+
+                        const c = columns.find(col => col.name === fCol)
+                        if (c) {
+                          c.isForeignKey = true
+                          c.references = { table: toTableTarget, column: tCol }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
         tables.push({
           name: tableName,
           columns,
           comment: null,
         })
+      }
+    }
+  }
+
+  // Third Pass: Parse Drizzle relations() function declarations
+  for (const sourceFile of sourceFiles) {
+    const varStatements = sourceFile.getVariableStatements()
+
+    for (const varStmt of varStatements) {
+      for (const decl of varStmt.getDeclarations()) {
+        const init = decl.getInitializer()
+        if (!init || !Node.isCallExpression(init)) continue
+
+        const callerExpr = init.getExpression()
+        const callerName = callerExpr.getText()
+        if (callerName !== 'relations') continue
+
+        const args = init.getArguments()
+        if (args.length < 2) continue
+
+        // First arg is the source table variable
+        const sourceTableVar = args[0].getText()
+        const fromTableName = tableVarNameToTableName.get(sourceTableVar) || sourceTableVar
+
+        // Second arg is callback: ({ one, many }) => ({ ... })
+        const callbackArg = args[1]
+        let relsObj: Node | null = null
+
+        if (Node.isArrowFunction(callbackArg) || Node.isFunctionExpression(callbackArg)) {
+          const body = callbackArg.getBody()
+          if (Node.isObjectLiteralExpression(body)) {
+            relsObj = body
+          } else if (Node.isParenthesizedExpression(body)) {
+            const inner = body.getExpression()
+            if (Node.isObjectLiteralExpression(inner)) {
+              relsObj = inner
+            }
+          } else if (Node.isBlock(body)) {
+            for (const stmt of body.getStatements()) {
+              if (Node.isReturnStatement(stmt)) {
+                const expr = stmt.getExpression()
+                if (expr && Node.isObjectLiteralExpression(expr)) {
+                  relsObj = expr
+                }
+              }
+            }
+          }
+        }
+
+        if (!relsObj || !Node.isObjectLiteralExpression(relsObj)) continue
+
+        for (const prop of relsObj.getProperties()) {
+          if (!Node.isPropertyAssignment(prop)) continue
+          const relInit = prop.getInitializer()
+          if (!relInit || !Node.isCallExpression(relInit)) continue
+
+          const helperName = relInit.getExpression().getText()
+          const helperArgs = relInit.getArguments()
+
+          // We handle one(...) which defines fields & references
+          if (helperName === 'one' && helperArgs.length >= 2) {
+            const targetTableVar = helperArgs[0].getText()
+            const toTableName = tableVarNameToTableName.get(targetTableVar) || targetTableVar
+
+            const config = helperArgs[1]
+            if (Node.isObjectLiteralExpression(config)) {
+              const fieldsProp = config.getProperty('fields')
+              const refsProp = config.getProperty('references')
+
+              let fromCols: string[] = []
+              let toCols: string[] = []
+
+              if (fieldsProp && Node.isPropertyAssignment(fieldsProp)) {
+                const fieldsInit = fieldsProp.getInitializer()
+                if (fieldsInit && Node.isArrayLiteralExpression(fieldsInit)) {
+                  fromCols = fieldsInit.getElements().map(el => {
+                    const extracted = extractTargetVarAndProp(el)
+                    const propName = extracted
+                      ? extracted.targetProp
+                      : el.getText().split('.').pop() || 'id'
+                    return resolveColumnName(sourceTableVar, propName)
+                  })
+                }
+              }
+
+              if (refsProp && Node.isPropertyAssignment(refsProp)) {
+                const refsInit = refsProp.getInitializer()
+                if (refsInit && Node.isArrayLiteralExpression(refsInit)) {
+                  toCols = refsInit.getElements().map(el => {
+                    const extracted = extractTargetVarAndProp(el)
+                    const propName = extracted
+                      ? extracted.targetProp
+                      : el.getText().split('.').pop() || 'id'
+                    return resolveColumnName(targetTableVar, propName)
+                  })
+                }
+              }
+
+              for (let i = 0; i < Math.min(fromCols.length, toCols.length); i++) {
+                const fromCol = fromCols[i]
+                const toCol = toCols[i]
+                const relKey = `${fromTableName}.${fromCol}->${toTableName}.${toCol}`
+                const exists = relations.some(r => `${r.from}->${r.to}` === relKey)
+                if (!exists) {
+                  relations.push({
+                    from: `${fromTableName}.${fromCol}`,
+                    to: `${toTableName}.${toCol}`,
+                    fromTable: fromTableName,
+                    fromColumn: fromCol,
+                    toTable: toTableName,
+                    toColumn: toCol,
+                  })
+
+                  // Mark isForeignKey on the source table's column
+                  const srcTable = tables.find(t => t.name === fromTableName)
+                  if (srcTable) {
+                    const col = srcTable.columns.find(c => c.name === fromCol)
+                    if (col) {
+                      col.isForeignKey = true
+                      col.references = { table: toTableName, column: toCol }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }

@@ -37,6 +37,7 @@ export function transformMysqlToPostgres(rawSql: string): TransformResult {
   const directivePatterns = [
     /\bSET\s+(?:SQL_MODE|time_zone|FOREIGN_KEY_CHECKS|UNIQUE_CHECKS|NAMES|@OLD_[\w_]+)\s*=[^;]+;/gi,
     /\bUSE\s+[`"]?[\w_]+[`"]?\s*;/gi,
+    /\b(?:CREATE|DROP)\s+DATABASE\s+[^;]+;/gi,
     /\bSTART\s+TRANSACTION\s*;/gi,
     /\bCOMMIT\s*;/gi,
     /\bDESCRIBE\s+[`"]?[\w_]+[`"]?\s*;/gi,
@@ -112,8 +113,26 @@ export function transformMysqlToPostgres(rawSql: string): TransformResult {
     const autoCols = autoIncrementMap.get(cleanTableName) || new Set<string>()
 
     const lines = body.split('\n')
-    const transformedLines = lines.map(line => {
-      let l = line
+    const transformedLines: string[] = []
+
+    for (const line of lines) {
+      let l = line.trim()
+      if (!l) continue
+
+      // Filter out non-constraint secondary index lines e.g. KEY idx_foo (col) or INDEX idx_bar (col)
+      if (/^(?:FULLTEXT\s+|SPATIAL\s+)?(?:KEY|INDEX)\s+[`"]?[\w_]+[`"]?\s*\([^)]+\)/i.test(l)) {
+        continue
+      }
+
+      // Convert MySQL UNIQUE KEY name (cols) -> CONSTRAINT name UNIQUE (cols)
+      if (/\bUNIQUE\s+KEY\s+[`"]?([\w_]+)[`"]?\s*\(([^)]+)\)/i.test(l)) {
+        l = l.replace(
+          /\bUNIQUE\s+KEY\s+[`"]?([\w_]+)[`"]?\s*\(([^)]+)\)/gi,
+          'CONSTRAINT $1 UNIQUE ($2)'
+        )
+      } else if (/\bUNIQUE\s+KEY\s*\(([^)]+)\)/i.test(l)) {
+        l = l.replace(/\bUNIQUE\s+KEY\s*\(([^)]+)\)/gi, 'UNIQUE ($1)')
+      }
 
       // Check if this line is a column definition matching an auto-increment column
       for (const col of autoCols) {
@@ -169,8 +188,16 @@ export function transformMysqlToPostgres(rawSql: string): TransformResult {
       // Clean up multiple spaces
       l = l.replace(/\s{2,}/g, ' ')
 
-      return l
-    })
+      transformedLines.push(`  ${l}`)
+    }
+
+    // Fix any trailing commas on the last item
+    if (transformedLines.length > 0) {
+      const lastIdx = transformedLines.length - 1
+      if (transformedLines[lastIdx].endsWith(',')) {
+        transformedLines[lastIdx] = transformedLines[lastIdx].slice(0, -1)
+      }
+    }
 
     return `CREATE TABLE ${tableNameRaw} (\n${transformedLines.join('\n')}\n);`
   })

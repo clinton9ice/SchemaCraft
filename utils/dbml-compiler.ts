@@ -14,6 +14,37 @@ export interface SyntaxDiagnosticError {
 }
 
 /**
+ * Strips non-structural content from DBML code:
+ * - Multi-line and single-line block comments
+ * - Single-line comments (starting with //)
+ * - Blank lines
+ * This prevents memory bloat and keeps parsing focused strictly on structural DDL.
+ */
+export function sanitizeDbml(rawDbml: string): string {
+  if (!rawDbml || !rawDbml.trim()) return ''
+
+  let code = rawDbml
+
+  // 1. Strip block comments /* ... */
+  code = code.replace(/\/\*[\s\S]*?\*\//g, ' ')
+
+  // 2. Strip single-line comments (// and --) line-by-line
+  return code
+    .split('\n')
+    .map(line => {
+      let l = line
+      const slashComment = l.indexOf('//')
+      if (slashComment !== -1) l = l.slice(0, slashComment)
+      const dashComment = l.indexOf('--')
+      if (dashComment !== -1) l = l.slice(0, dashComment)
+      return l
+    })
+    .filter(line => line.trim().length > 0)
+    .join('\n')
+    .trim()
+}
+
+/**
  * Validates DBML code syntax with precise line/column tracking
  */
 export function validateDbmlCode(dbmlCode: string): {
@@ -78,6 +109,9 @@ export function validateDbmlCode(dbmlCode: string): {
         openBraces++
         currentTableStartLine = lineNum
       }
+      if (line.includes('}')) {
+        openBraces--
+      }
       continue
     }
 
@@ -101,16 +135,19 @@ export function validateDbmlCode(dbmlCode: string): {
       continue
     }
 
-    // Other valid top-level blocks
+    // Other valid top-level blocks (Project, Enum, TableGroup)
     if (/^(?:Enum|TableGroup|Project)\s+/i.test(trimmed)) {
       if (line.includes('{')) {
         openBraces++
+      }
+      if (line.includes('}')) {
+        openBraces--
       }
       continue
     }
 
     // Closing brace
-    if (trimmed === '}' || trimmed.startsWith('}')) {
+    if (trimmed === '}' || trimmed.startsWith('}') || trimmed.endsWith('}')) {
       openBraces--
       if (openBraces < 0) {
         return {
@@ -134,6 +171,9 @@ export function validateDbmlCode(dbmlCode: string): {
         trimmed.startsWith('indexes {') ||
         trimmed.startsWith('//')
       ) {
+        if (trimmed.startsWith('indexes {') && !trimmed.includes('}')) {
+          openBraces++
+        }
         continue
       }
 

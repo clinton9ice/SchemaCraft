@@ -14,12 +14,14 @@ describe('useSchemaUploader Composable', () => {
     switchTab(tabs.value[0].id)
   })
 
-  it('processes standard PostgreSQL file to completed stage', async () => {
+  it('processes standard PostgreSQL file to completed stage and sanitizes data rows', async () => {
     const { startUploadQueue, isUploadModalOpen, stage, completedSchemas, handleVisualise } =
       useSchemaUploader()
 
     const pgFile = new File(
-      ['CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);'],
+      [
+        'CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);\nINSERT INTO users (id, name) VALUES (1, "Test");',
+      ],
       'users.sql',
       { type: 'text/plain' }
     )
@@ -30,13 +32,88 @@ describe('useSchemaUploader Composable', () => {
     expect(stage.value).toBe('completed')
     expect(completedSchemas.value.length).toBe(1)
     expect(completedSchemas.value[0].title).toBe('users.sql')
+    expect(completedSchemas.value[0].language).toBe('sql')
+    // Data rows should have been stripped to protect heap memory
+    expect(completedSchemas.value[0].content).not.toContain('INSERT INTO')
 
     // Visualise into editor tabs
     const { tabs } = useSchemaStore()
     handleVisualise()
 
     expect(isUploadModalOpen.value).toBe(false)
-    expect(tabs.value.some(t => t.title === 'users.sql')).toBe(true)
+    expect(tabs.value.some(t => t.title === 'users.sql' && t.language === 'sql')).toBe(true)
+  })
+
+  it('automatically detects .prisma extension and opens in prisma mode without dialect check', async () => {
+    const { startUploadQueue, stage, completedSchemas, handleVisualise } = useSchemaUploader()
+
+    const prismaFile = new File(
+      ['model User {\n  id Int @id @default(autoincrement())\n  email String @unique\n}'],
+      'schema.prisma',
+      { type: 'text/plain' }
+    )
+
+    await startUploadQueue([prismaFile])
+
+    // Should complete directly without pausing at dialect_prompt
+    expect(stage.value).toBe('completed')
+    expect(completedSchemas.value.length).toBe(1)
+    expect(completedSchemas.value[0].language).toBe('prisma')
+
+    const { tabs } = useSchemaStore()
+    handleVisualise()
+
+    const addedTab = tabs.value.find(t => t.title === 'schema.prisma')
+    expect(addedTab).toBeDefined()
+    expect(addedTab?.language).toBe('prisma')
+  })
+
+  it('automatically detects .dbml extension and opens in dbml mode without dialect check', async () => {
+    const { startUploadQueue, stage, completedSchemas, handleVisualise } = useSchemaUploader()
+
+    const dbmlFile = new File(
+      ['Table users {\n  id integer [pk]\n  username varchar\n}'],
+      'database.dbml',
+      { type: 'text/plain' }
+    )
+
+    await startUploadQueue([dbmlFile])
+
+    expect(stage.value).toBe('completed')
+    expect(completedSchemas.value.length).toBe(1)
+    expect(completedSchemas.value[0].language).toBe('dbml')
+
+    const { tabs } = useSchemaStore()
+    handleVisualise()
+
+    const addedTab = tabs.value.find(t => t.title === 'database.dbml')
+    expect(addedTab).toBeDefined()
+    expect(addedTab?.language).toBe('dbml')
+  })
+
+  it('automatically detects .ts Drizzle/TypeORM extension without dialect check', async () => {
+    const { startUploadQueue, stage, completedSchemas, handleVisualise } = useSchemaUploader()
+
+    const drizzleFile = new File(
+      [
+        "import { pgTable, serial, text } from 'drizzle-orm/pg-core';\nexport const users = pgTable('users', { id: serial('id').primaryKey() });",
+      ],
+      'schema.ts',
+      { type: 'text/plain' }
+    )
+
+    await startUploadQueue([drizzleFile])
+
+    expect(stage.value).toBe('completed')
+    expect(completedSchemas.value.length).toBe(1)
+    expect(completedSchemas.value[0].language).toBe('drizzle')
+
+    const { tabs } = useSchemaStore()
+    handleVisualise()
+
+    const addedTab = tabs.value.find(t => t.title === 'schema.ts')
+    expect(addedTab).toBeDefined()
+    expect(addedTab?.language).toBe('drizzle')
   })
 
   it('pauses at dialect_prompt for MySQL file and transforms upon proceed', async () => {

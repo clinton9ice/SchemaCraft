@@ -31,55 +31,48 @@ function handleReupload() {
         class="fixed inset-0 z-50 flex items-center justify-center p-4 select-none bg-black/60 backdrop-blur-md"
         @click.self="handleDismiss"
       >
-        <!-- iOS Style Frosted Glass Dialog -->
         <div
-          class="w-full max-w-md overflow-hidden rounded-[28px] border border-white/15 bg-neutral-900/90 shadow-2xl backdrop-blur-2xl text-neutral-100 transition-all p-6 text-center"
+          class="w-full max-w-md overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl text-neutral-100 transition-all p-6 text-center"
         >
-          <!-- Soft Warning Badge -->
           <div
-            class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-400 border border-rose-500/20"
+            class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-800 text-rose-400 border border-neutral-700/60"
           >
             <tools-icon
               dir="editor"
               icon="alert"
-              width="28"
-              height="28"
+              width="24"
+              height="24"
               svg-class="text-rose-400"
             />
           </div>
 
-          <!-- Dialog Header -->
-          <h3 class="text-lg font-semibold tracking-tight text-white mb-2">
+          <h3 class="text-base font-semibold tracking-tight text-white mb-1.5">
             File Exceeds 1MB Limit
           </h3>
 
-          <!-- Dialog Body Copy -->
-          <p class="text-sm leading-relaxed text-neutral-300/90 mb-5 font-normal px-1">
-            This board can only accept files less than or equal to 1MB in size. Please consider
-            splitting your queries for easy execution.
+          <p class="text-xs leading-relaxed text-neutral-400 mb-4 font-normal px-1">
+            This workspace accepts files up to 1MB. Consider splitting large queries or dumping
+            schema structure only without data.
           </p>
 
-          <!-- Oversized File Details Pill -->
           <div
             v-if="oversizedFileName"
-            class="mb-6 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs text-neutral-300"
+            class="mb-5 flex items-center justify-between gap-3 rounded-xl border border-neutral-800 bg-neutral-800/50 px-3.5 py-2 text-xs text-neutral-300"
           >
             <div class="flex items-center gap-2 truncate text-left">
-              <span class="text-neutral-400">📄</span>
               <span class="truncate font-mono text-neutral-200">{{ oversizedFileName }}</span>
             </div>
             <span
-              class="shrink-0 rounded bg-rose-500/20 px-2 py-0.5 font-mono text-[11px] font-medium text-rose-300"
+              class="shrink-0 rounded-md bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 font-mono text-[11px] font-medium text-rose-300"
             >
               {{ formatFileSize(oversizedFileSize) }}
             </span>
           </div>
 
-          <!-- iOS Dialog Button Actions -->
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-neutral-300 transition-all hover:bg-white/10 hover:text-white active:scale-[0.98] cursor-pointer"
+              class="w-full rounded-lg border border-neutral-700/80 bg-neutral-800 px-3 py-2 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-white cursor-pointer"
               @click="handleDismiss"
             >
               Dismiss
@@ -87,10 +80,10 @@ function handleReupload() {
 
             <button
               type="button"
-              class="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-500 active:scale-[0.98] cursor-pointer"
+              class="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500 cursor-pointer"
               @click="handleReupload"
             >
-              Reupload
+              Choose another file
             </button>
           </div>
         </div>

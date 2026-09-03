@@ -39,47 +39,34 @@ function handleDismiss() {
         class="fixed inset-0 z-50 flex items-center justify-center p-4 select-none bg-black/60 backdrop-blur-md"
         @click.self="handleDismiss"
       >
-        <!-- iOS Style Frosted Glass Dialog -->
         <div
-          class="w-full max-w-md overflow-hidden rounded-[28px] border border-white/15 bg-neutral-900/90 shadow-2xl backdrop-blur-2xl text-neutral-100 transition-all p-6 text-center"
+          class="w-full max-w-md overflow-hidden rounded-2xl border border-neutral-800 bg-neutral-900 shadow-2xl text-neutral-100 transition-all p-6 text-center"
         >
-          <!-- Soft Icon Badge -->
           <div
-            class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/20"
+            class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-neutral-800 text-amber-400 border border-neutral-700/60"
           >
             <tools-icon
               dir="editor"
               icon="tabs"
-              width="28"
-              height="28"
+              width="24"
+              height="24"
               svg-class="text-amber-400"
             />
           </div>
 
-          <!-- Dialog Header -->
-          <h3 class="text-lg font-semibold tracking-tight text-white mb-2">
+          <h3 class="text-base font-semibold tracking-tight text-white mb-1.5">
             Tab Limit Reached ({{ tabs.length }}/{{ MAX_WORKSPACE_TABS }})
           </h3>
 
-          <!-- Dialog Body Copy -->
-          <p class="text-sm leading-relaxed text-neutral-300/90 mb-6 font-normal px-2">
-            You will need to export and save the files you're done with to free up more tabs as
-            you're only allowed to open just 10 tabs per task.
+          <p class="text-xs leading-relaxed text-neutral-400 mb-5 font-normal px-2">
+            You've hit the maximum of 10 open tabs. You can save and download all your current tabs
+            as a ZIP archive to clear space.
           </p>
 
-          <!-- Current Open Tabs Count Summary Pill -->
-          <div
-            class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1 text-xs text-neutral-400"
-          >
-            <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-            <span>Workspace is at full capacity (10 active schemas)</span>
-          </div>
-
-          <!-- iOS Dialog Button Actions -->
-          <div class="flex flex-col gap-2.5">
+          <div class="flex flex-col gap-2">
             <button
               type="button"
-              class="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:bg-blue-500 active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+              class="w-full rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-blue-500 cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
               :disabled="isExportingZip"
               @click="handleExportZip"
             >
@@ -87,26 +74,26 @@ function handleDismiss() {
                 v-if="isExportingZip"
                 dir="editor"
                 icon="loading"
-                width="16"
-                height="16"
+                width="14"
+                height="14"
                 svg-class="animate-spin text-white"
               />
               <tools-icon
                 v-else-if="!hasExported"
                 dir="editor"
                 icon="download"
-                width="16"
-                height="16"
+                width="14"
+                height="14"
                 svg-class="text-white"
               />
               <span>{{
-                hasExported ? 'Downloaded collection.zip!' : 'Export All as collection.zip'
+                hasExported ? 'Downloaded collection.zip!' : 'Export all as collection.zip'
               }}</span>
             </button>
 
             <button
               type="button"
-              class="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-neutral-300 transition-all hover:bg-white/10 hover:text-white active:scale-[0.98] cursor-pointer"
+              class="w-full rounded-lg border border-neutral-700/80 bg-neutral-800 px-3 py-2 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-700 hover:text-white cursor-pointer"
               @click="handleDismiss"
             >
               Dismiss

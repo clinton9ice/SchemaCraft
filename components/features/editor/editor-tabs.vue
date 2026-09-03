@@ -36,7 +36,6 @@ function cancelRenaming() {
   <div
     class="h-9 bg-[var(--tab-bar-bg)] border-b border-[var(--node-border)] flex items-center justify-between select-none overflow-hidden shrink-0 transition-colors duration-150"
   >
-    <!-- Tabs Scroll Area -->
     <div class="flex items-center h-full overflow-x-auto no-scrollbar min-w-0 flex-1">
       <div
         v-for="tab in tabs"
@@ -53,7 +52,6 @@ function cancelRenaming() {
         @click="switchTab(tab.id)"
         @dblclick="startRenaming(tab)"
       >
-        <!-- File Icon / Language Badge -->
         <span
           class="shrink-0 text-[10px] font-sans font-bold px-1 py-0.2 rounded"
           :class="[
@@ -81,7 +79,6 @@ function cancelRenaming() {
           }}
         </span>
 
-        <!-- Tab Title (or Inline Rename Input) -->
         <div v-if="editingTabId === tab.id" class="min-w-0 flex-1">
           <input
             ref="editInputRef"
@@ -102,16 +99,13 @@ function cancelRenaming() {
           {{ tab.title }}
         </span>
 
-        <!-- Dirty Indicator (when modified) or Close Button -->
         <div class="flex items-center shrink-0 w-4 h-4 justify-center">
-          <!-- Dirty dot (shows if modified and not hovered) -->
           <span
             v-if="tab.sqlCode !== tab.lastSavedCode"
             class="w-2 h-2 rounded-full bg-amber-400 group-hover:hidden"
             title="Unsaved changes"
           />
 
-          <!-- Close Tab Button (X) -->
           <button
             type="button"
             class="w-4 h-4 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors"
@@ -129,7 +123,6 @@ function cancelRenaming() {
       </div>
     </div>
 
-    <!-- Add New Tab Button with Tab Counter -->
     <div class="px-2 flex items-center gap-1.5 shrink-0 relative new-tab-container">
       <span
         v-if="tabs.length >= 8"

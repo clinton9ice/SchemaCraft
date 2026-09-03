@@ -1,12 +1,17 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import { detectSqlDialect } from '../../utils/sql-dialect-detector'
 
 describe('SQL Dialect Detector', () => {
-  it('correctly detects MySQL dialect in vestnan1_db.sql', () => {
-    const filePath = resolve(process.cwd(), 'vestnan1_db.sql')
-    const sql = readFileSync(filePath, 'utf-8')
+  it('correctly detects MySQL dialect in vestnan1_db SQL fixture', () => {
+    const sql = `
+      CREATE TABLE \`users\` (
+        \`id\` int(11) NOT NULL AUTO_INCREMENT,
+        \`username\` varchar(255) NOT NULL,
+        \`Track_ID\` varchar(255) NOT NULL,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+      /*!40101 SET character_set_client = @saved_cs_client */;
+    `
 
     const result = detectSqlDialect(sql)
 
@@ -18,9 +23,12 @@ describe('SQL Dialect Detector', () => {
     expect(result.reasons.some(r => r.includes('ENGINE'))).toBe(true)
   })
 
-  it('correctly detects MySQL dialect in add_columns.sql due to USE and DESCRIBE', () => {
-    const filePath = resolve(process.cwd(), 'add_columns.sql')
-    const sql = readFileSync(filePath, 'utf-8')
+  it('correctly detects MySQL dialect in add_columns SQL fixture due to USE and DESCRIBE', () => {
+    const sql = `
+      USE \`my_database\`;
+      DESCRIBE \`users\`;
+      ALTER TABLE \`users\` ADD COLUMN \`age\` INT;
+    `
 
     const result = detectSqlDialect(sql)
 

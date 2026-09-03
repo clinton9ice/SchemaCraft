@@ -1,6 +1,10 @@
 import { detectSqlDialect } from '~/utils/sql-dialect-detector'
 import { transformMysqlToPostgres } from '~/utils/mysql-to-postgres-transformer'
-import type { SupportedLanguage } from '~/composables/use-schema-store'
+import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
+import { sanitizeDbml } from '~/utils/dbml-compiler'
+import { sanitizeDrizzle, sanitizeTypeORM } from '~/utils/ts-sanitizer'
+import { sanitizePrisma } from '~/utils/prisma-compiler'
+import { detectLanguageFromCode, type SupportedLanguage } from '~/composables/use-schema-store'
 
 export type UploadStage =
   'idle' | 'reading' | 'analyzing' | 'dialect_prompt' | 'transforming' | 'completed'
@@ -34,7 +38,7 @@ const completedSchemas = ref<ReadySchema[]>([])
 let promptResolver: ((action: 'proceed' | 'decline') => void) | null = null
 
 export function useSchemaUploader() {
-  const { addNewTab, switchTab, isTabLimitModalOpen, canAddTabs } = useSchemaStore()
+  const { tabs, addNewTab, switchTab, isTabLimitModalOpen, canAddTabs } = useSchemaStore()
 
   const currentItem = computed<UploadQueueItem | null>(() => {
     return uploadQueue.value[currentQueueIndex.value] || null
@@ -116,64 +120,139 @@ export function useSchemaUploader() {
     stage.value = 'reading'
 
     // Stage 1: Uploading / Reading file
-    statusMessage.value = 'Uploading file, this should not take long now...'
+    statusMessage.value = 'Uploading file...'
     await animateProgress(25, 250)
 
     const text = await item.file.text()
     item.rawText = text
 
-    statusMessage.value = 'Reading file to determine SQL commands and structure...'
-    await animateProgress(60, 300)
+    statusMessage.value = 'Reading schema definitions...'
+    await animateProgress(60, 200)
 
-    // Stage 2: Analyzing dialect
-    stage.value = 'analyzing'
-    statusMessage.value = 'Analyzing syntax and dialect compatibility...'
-    await animateProgress(85, 250)
+    // Check file extension: if it's an extension we currently support natively, open in that extension directly!
+    const lowerName = item.file.name.toLowerCase()
+    const isPrismaExt = lowerName.endsWith('.prisma')
+    const isDbmlExt = lowerName.endsWith('.dbml')
+    const isTsExt = lowerName.endsWith('.ts') || lowerName.endsWith('.js')
+    const isPostgresExt = lowerName.endsWith('.pgsql') || lowerName.endsWith('.psql')
 
-    const detection = detectSqlDialect(text)
-    item.detectedDialect = detection.dialect
-    item.isMysql = detection.isMysql
-    item.reasons = detection.reasons
+    if (isPrismaExt) {
+      // 1. Prisma Schema: open directly in prisma mode
+      stage.value = 'completed'
+      statusMessage.value = 'Prisma schema ready'
+      await animateProgress(100, 150)
 
-    if (detection.isMysql) {
-      // Pause queue on this specific file and prompt user for decision
-      item.status = 'needs_transform'
-      detectedReasons.value = detection.reasons
-      stage.value = 'dialect_prompt'
-      statusMessage.value = 'MySQL / MariaDB syntax detected'
-
-      const userChoice = await waitForUserDecision()
-
-      if (userChoice === 'decline') {
-        // User declined: Skip this file and advance queue
-        item.status = 'skipped'
-        currentQueueIndex.value++
-        await processNextQueueItem()
-        return
-      }
-
-      // User chose to proceed: Transform DDL
-      stage.value = 'transforming'
-      statusMessage.value = 'Transforming identifiers and types to PostgreSQL...'
-      await animateProgress(95, 250)
-
-      const transformed = transformMysqlToPostgres(text)
-      item.status = 'transformed'
-      transformedCount.value++
-
-      completedSchemas.value.push({
-        title: item.file.name,
-        content: transformed.sql,
-        language: 'sql',
-      })
-    } else {
-      // Native PostgreSQL / DBML / Prisma schema
       item.status = 'ready'
       completedSchemas.value.push({
         title: item.file.name,
-        content: text,
+        content: sanitizePrisma(text),
+        language: 'prisma',
+      })
+    } else if (isDbmlExt) {
+      // 2. DBML Schema: open directly in dbml mode
+      stage.value = 'completed'
+      statusMessage.value = 'DBML schema ready'
+      await animateProgress(100, 150)
+
+      item.status = 'ready'
+      completedSchemas.value.push({
+        title: item.file.name,
+        content: sanitizeDbml(text),
+        language: 'dbml',
+      })
+    } else if (isTsExt) {
+      // 3. TypeScript Schema (Drizzle ORM / TypeORM): detect entity structure
+      const tsLang: SupportedLanguage = /@Entity\b/.test(text) ? 'typeorm' : 'drizzle'
+      stage.value = 'completed'
+      statusMessage.value = tsLang === 'typeorm' ? 'TypeORM entities ready' : 'Drizzle schema ready'
+      await animateProgress(100, 150)
+
+      const sanitizedText = tsLang === 'typeorm' ? sanitizeTypeORM(text) : sanitizeDrizzle(text)
+      item.status = 'ready'
+      completedSchemas.value.push({
+        title: item.file.name,
+        content: sanitizedText,
+        language: tsLang,
+      })
+    } else if (isPostgresExt) {
+      // 4. Native PostgreSQL extension: sanitize data rows to prevent heap exhaustion
+      const sanitized = sanitizeSqlDdl(text)
+      stage.value = 'completed'
+      statusMessage.value = 'PostgreSQL DDL ready'
+      await animateProgress(100, 150)
+
+      item.status = 'ready'
+      completedSchemas.value.push({
+        title: item.file.name,
+        content: sanitized,
         language: 'sql',
       })
+    } else {
+      // 5. Extension is .sql, .ddl, .dump, or generic: run MySQL dialect detection!
+      stage.value = 'analyzing'
+      statusMessage.value = 'Checking dialect compatibility...'
+      await animateProgress(85, 250)
+
+      const detection = detectSqlDialect(text)
+      item.detectedDialect = detection.dialect
+      item.isMysql = detection.isMysql
+      item.reasons = detection.reasons
+
+      if (detection.isMysql) {
+        // Pause queue on this specific file and prompt user for decision
+        item.status = 'needs_transform'
+        detectedReasons.value = detection.reasons
+        stage.value = 'dialect_prompt'
+        statusMessage.value = 'MySQL syntax found'
+
+        const userChoice = await waitForUserDecision()
+
+        if (userChoice === 'decline') {
+          // User declined: Skip this file and advance queue
+          item.status = 'skipped'
+          currentQueueIndex.value++
+          await processNextQueueItem()
+          return
+        }
+
+        // User chose to proceed: Transform DDL and strip data/directives
+        stage.value = 'transforming'
+        statusMessage.value = 'Converting to PostgreSQL...'
+        await animateProgress(95, 250)
+
+        const transformed = transformMysqlToPostgres(text)
+        item.status = 'transformed'
+        transformedCount.value++
+
+        completedSchemas.value.push({
+          title: item.file.name,
+          content: sanitizeSqlDdl(transformed.sql),
+          language: 'sql',
+        })
+      } else {
+        // Not MySQL: Check if content happens to be DBML/Prisma or clean SQL DDL
+        const detectedLang = detectLanguageFromCode(text)
+        // Sanitize comments and bulk data rows to protect parser memory
+        let finalContent = text
+        if (detectedLang === 'sql') {
+          finalContent = sanitizeSqlDdl(text)
+        } else if (detectedLang === 'dbml') {
+          finalContent = sanitizeDbml(text)
+        } else if (detectedLang === 'drizzle') {
+          finalContent = sanitizeDrizzle(text)
+        } else if (detectedLang === 'typeorm') {
+          finalContent = sanitizeTypeORM(text)
+        } else if (detectedLang === 'prisma') {
+          finalContent = sanitizePrisma(text)
+        }
+
+        item.status = 'ready'
+        completedSchemas.value.push({
+          title: item.file.name,
+          content: finalContent,
+          language: detectedLang,
+        })
+      }
     }
 
     await animateProgress(100, 150)
@@ -216,11 +295,17 @@ export function useSchemaUploader() {
     }
 
     let firstNewTabId: string | null = null
-
     for (const schema of completedSchemas.value) {
-      const newTab = addNewTab(schema.title, schema.content, schema.language)
-      if (newTab && !firstNewTabId) {
-        firstNewTabId = newTab.id
+      const existingTab = tabs.value.find(t => t.title.toLowerCase() === schema.title.toLowerCase())
+      if (existingTab) {
+        if (!firstNewTabId) {
+          firstNewTabId = existingTab.id
+        }
+      } else {
+        const newTab = addNewTab(schema.title, schema.content, schema.language)
+        if (newTab && !firstNewTabId) {
+          firstNewTabId = newTab.id
+        }
       }
     }
 

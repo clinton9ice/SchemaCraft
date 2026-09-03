@@ -1,14 +1,34 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
 import pgQuery, { type PgQueryParser } from 'pg-query-emscripten'
 import { transformMysqlToPostgres } from '../../utils/mysql-to-postgres-transformer'
 import { compilePgAst } from '../../utils/sql-compiler'
 
 describe('MySQL to PostgreSQL DDL Transformer', () => {
-  it('successfully transforms vestnan1_db.sql into valid PostgreSQL DDL', async () => {
-    const filePath = resolve(process.cwd(), 'vestnan1_db.sql')
-    const rawSql = readFileSync(filePath, 'utf-8')
+  it('successfully transforms vestnan1_db SQL fixture into valid PostgreSQL DDL', async () => {
+    const rawSql = `
+      /*!40101 SET @saved_cs_client = @@character_set_client */;
+      CREATE TABLE \`message\` (
+        \`id\` int(11) NOT NULL AUTO_INCREMENT,
+        \`Track_ID\` varchar(255) NOT NULL,
+        \`loginCookie\` varchar(255) DEFAULT NULL,
+        \`details\` longtext,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+      CREATE TABLE \`product\` (
+        \`id\` int(11) NOT NULL AUTO_INCREMENT,
+        \`name\` varchar(255) NOT NULL,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB;
+
+      CREATE TABLE \`users\` (
+        \`id\` int(11) NOT NULL AUTO_INCREMENT,
+        \`username\` varchar(255) NOT NULL,
+        PRIMARY KEY (\`id\`)
+      ) ENGINE=InnoDB;
+
+      INSERT INTO \`users\` (\`id\`, \`username\`) VALUES (1, 'john');
+    `
 
     const result = transformMysqlToPostgres(rawSql)
 
@@ -57,9 +77,19 @@ describe('MySQL to PostgreSQL DDL Transformer', () => {
     expect(tableNames).toContain('users')
   })
 
-  it('transforms add_columns.sql by stripping USE and DESCRIBE while keeping ALTER TABLE', async () => {
-    const filePath = resolve(process.cwd(), 'add_columns.sql')
-    const rawSql = readFileSync(filePath, 'utf-8')
+  it('transforms add_columns fixture by stripping USE and DESCRIBE while keeping ALTER TABLE', async () => {
+    const rawSql = `
+      USE vestnan1_db;
+
+      -- Add alert column
+      ALTER TABLE product ADD COLUMN alert TEXT DEFAULT NULL;
+
+      -- Add rand column
+      ALTER TABLE product ADD COLUMN rand VARCHAR(250) DEFAULT NULL;
+
+      -- Show the updated table structure
+      DESCRIBE product;
+    `
 
     const result = transformMysqlToPostgres(rawSql)
 

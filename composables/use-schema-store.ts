@@ -1,9 +1,11 @@
 import type { CompiledTable, CompiledRelation } from '~/utils/sql-compiler'
-import { parseDbml, tablesToDbml, dbmlToSql } from '~/utils/dbml-compiler'
-import { parsePrisma, tablesToPrisma, prismaToSql } from '~/utils/prisma-compiler'
+import { parseDbml, tablesToDbml, dbmlToSql, sanitizeDbml } from '~/utils/dbml-compiler'
+import { parsePrisma, tablesToPrisma, prismaToSql, sanitizePrisma } from '~/utils/prisma-compiler'
 import { compileTypeORM, tablesToTypeORM, typeormToSql } from '~/utils/typeorm-compiler'
 import { compileDrizzle, tablesToDrizzle, drizzleToSql } from '~/utils/drizzle-compiler'
-import { MAX_WORKSPACE_TABS } from '~/utils/constants'
+import { sanitizeDrizzle, sanitizeTypeORM } from '~/utils/ts-sanitizer'
+import { MAX_WORKSPACE_TABS, MAX_DDL_BYTES } from '~/utils/constants'
+import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
 import { downloadZipArchive, type ZipFileEntry } from '~/utils/zip-exporter'
 
 export type SupportedLanguage = 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
@@ -187,6 +189,44 @@ const initialTab: SchemaTab = {
   createdAt: Date.now(),
 }
 
+// ---------------------------------------------------------------------------
+// Parse result cache — keyed by `${tabId}::${language}::${code}` hash
+// Avoids re-hitting the WASM parser for identical content (e.g. tab switches,
+// diagram panel toggles, or rapid keystroke debounce hits).
+// ---------------------------------------------------------------------------
+interface ParseCacheEntry {
+  tables: CompiledTable[]
+  relations: CompiledRelation[]
+  cachedAt: number
+}
+
+/** Simple djb2 hash — fast, no crypto dependency, good enough for cache keys */
+function hashString(str: string): string {
+  let h = 5381
+  for (let i = 0; i < str.length; i++) {
+    h = (h * 33) ^ str.charCodeAt(i)
+  }
+  return (h >>> 0).toString(36)
+}
+
+const PARSE_CACHE_MAX = 10
+const parseCache = new Map<string, ParseCacheEntry>()
+
+function getCached(tabId: string, language: string, code: string): ParseCacheEntry | null {
+  const key = hashString(`${tabId}::${language}::${code}`)
+  return parseCache.get(key) ?? null
+}
+
+function setCached(tabId: string, language: string, code: string, entry: ParseCacheEntry) {
+  const key = hashString(`${tabId}::${language}::${code}`)
+  // Evict oldest entry when at capacity
+  if (parseCache.size >= PARSE_CACHE_MAX && !parseCache.has(key)) {
+    const oldest = parseCache.keys().next().value
+    if (oldest) parseCache.delete(oldest)
+  }
+  parseCache.set(key, entry)
+}
+
 // Global state
 const tabs = ref<SchemaTab[]>([initialTab])
 const activeTabId = ref<string>('tab-default')
@@ -194,6 +234,8 @@ const isSaving = ref(false)
 const lastSaveTimestamp = ref<Date | null>(new Date())
 const isParsing = ref(false)
 const isTabLimitModalOpen = ref(false)
+/** Soft warning shown when sanitized DDL exceeds MAX_DDL_BYTES and parsing is skipped */
+const parseWarning = ref<string | null>(null)
 const availablePresets = ref<
   Array<{
     id: string
@@ -203,6 +245,16 @@ const availablePresets = ref<
     language?: SupportedLanguage
   }>
 >([])
+
+export interface SampleFileInfo {
+  fileName: string
+  baseName: string
+  ext: string
+  language: SupportedLanguage
+  content: string
+}
+
+const sampleFiles = ref<SampleFileInfo[]>([])
 
 export function useSchemaStore() {
   // Currently active tab
@@ -542,6 +594,17 @@ export function useSchemaStore() {
     }
   }
 
+  async function fetchSampleFiles() {
+    try {
+      const files = await $fetch<SampleFileInfo[]>('/api/sample-files')
+      if (files && files.length) {
+        sampleFiles.value = files
+      }
+    } catch (err) {
+      console.warn('Could not fetch sample files from Nitro backend:', err)
+    }
+  }
+
   // Parse SQL, DBML or Prisma into structured AST table/relation graph on Nitro
   async function parseSchema(code: string, langOverride?: SupportedLanguage) {
     if (!activeTab.value) return
@@ -555,9 +618,57 @@ export function useSchemaStore() {
     if (!code || !code.trim()) {
       targetTab.parsedTables = []
       targetTab.parsedRelations = []
+      parseWarning.value = null
       return
     }
 
+    // ---------------------------------------------------------------------------
+    // 1. Universal pre-parse sanitization for all schema languages:
+    //    Strip comments, blank lines, and non-structural payload so only
+    //    clean definitions reach the parser and memory is protected.
+    // ---------------------------------------------------------------------------
+    let codeToSend = code
+    if (language === 'sql') {
+      codeToSend = sanitizeSqlDdl(code)
+    } else if (language === 'dbml') {
+      codeToSend = sanitizeDbml(code)
+    } else if (language === 'drizzle') {
+      codeToSend = sanitizeDrizzle(code)
+    } else if (language === 'typeorm') {
+      codeToSend = sanitizeTypeORM(code)
+    } else if (language === 'prisma') {
+      codeToSend = sanitizePrisma(code)
+    }
+
+    // ---------------------------------------------------------------------------
+    // 2. Byte-size guard — skip parsing if sanitized DDL is still too large.
+    //    Surface a soft warning instead of crashing the WASM parser.
+    // ---------------------------------------------------------------------------
+    const byteSize = new TextEncoder().encode(codeToSend).length
+    if (language === 'sql' && byteSize > MAX_DDL_BYTES) {
+      parseWarning.value =
+        `Schema DDL is ${Math.round(byteSize / 1024)}KB after sanitizing — ` +
+        `exceeds the ${Math.round(MAX_DDL_BYTES / 1024)}KB parser limit. ` +
+        `Diagram may not render. Try removing extra comments or splitting the file.`
+      isParsing.value = false
+      return
+    }
+
+    parseWarning.value = null
+
+    // ---------------------------------------------------------------------------
+    // 3. Cache lookup — return immediately if this exact code was parsed before.
+    // ---------------------------------------------------------------------------
+    const cached = getCached(targetTabId, language, codeToSend)
+    if (cached) {
+      targetTab.parsedTables = cached.tables
+      targetTab.parsedRelations = cached.relations
+      return
+    }
+
+    // ---------------------------------------------------------------------------
+    // 4. Fetch from Nitro / WASM parser, then cache the result.
+    // ---------------------------------------------------------------------------
     isParsing.value = true
     try {
       const res = await $fetch<{
@@ -566,11 +677,17 @@ export function useSchemaStore() {
         relations: CompiledRelation[]
       }>('/api/schema/parse', {
         method: 'POST',
-        body: { sql: code, language },
+        body: { sql: codeToSend, language },
       })
       if (res && res.success) {
-        targetTab.parsedTables = res.tables || []
-        targetTab.parsedRelations = res.relations || []
+        const entry: ParseCacheEntry = {
+          tables: res.tables || [],
+          relations: res.relations || [],
+          cachedAt: Date.now(),
+        }
+        targetTab.parsedTables = entry.tables
+        targetTab.parsedRelations = entry.relations
+        setCached(targetTabId, language, codeToSend, entry)
       }
     } catch (err) {
       console.warn('Schema parse error:', err)
@@ -625,6 +742,26 @@ export function useSchemaStore() {
     }
   }
 
+  function loadSampleFile(file: SampleFileInfo) {
+    // If the file is already open in the tab, do not open or duplicate it
+    const existing = tabs.value.find(
+      t =>
+        t.title.toLowerCase() === file.fileName.toLowerCase() ||
+        t.title.toLowerCase() === file.baseName.toLowerCase()
+    )
+    if (existing) {
+      switchTab(existing.id)
+      return
+    }
+
+    if (tabs.value.length >= MAX_WORKSPACE_TABS) {
+      isTabLimitModalOpen.value = true
+      return
+    }
+
+    addNewTab(file.fileName, file.content, file.language)
+  }
+
   async function exportSchema(format: 'typescript' | 'prisma' | 'dbml' | 'json') {
     try {
       const res = await $fetch<{
@@ -640,16 +777,21 @@ export function useSchemaStore() {
       })
       return res
     } catch (err) {
-      console.error('Export error:', err)
-      return null
+      console.error('Export failed:', err)
+      return { success: false, content: '', format }
     }
   }
 
   function formatSql() {
-    if (activeTab.value) {
-      const lines = activeTab.value.sqlCode.split('\n')
-      activeTab.value.sqlCode = lines.join('\n')
-    }
+    // Basic SQL formatting
+    if (!activeTab.value?.sqlCode) return
+    const formatted = activeTab.value.sqlCode
+      .replace(/\s+/g, ' ')
+      .replace(/,\s*/g, ',\n  ')
+      .replace(/\s*;\s*/g, ';\n\n')
+      .replace(/CREATE TABLE/gi, '\nCREATE TABLE')
+      .trim()
+    activeTab.value.sqlCode = formatted
   }
 
   function canAddTabs(count = 1): boolean {
@@ -666,8 +808,8 @@ export function useSchemaStore() {
 
   return {
     tabs,
-    activeTabId,
     activeTab,
+    activeTabId,
     activeLanguage,
     addNewTab,
     closeTab,
@@ -691,6 +833,9 @@ export function useSchemaStore() {
     isParsing,
     availablePresets,
     fetchPresets,
+    sampleFiles,
+    fetchSampleFiles,
+    loadSampleFile,
     parseSchema,
     parseSchemaOnServer: parseSchema,
     setSqlCode,
@@ -700,6 +845,7 @@ export function useSchemaStore() {
     exportSchema,
     formatSql,
     isTabLimitModalOpen,
+    parseWarning,
     MAX_WORKSPACE_TABS,
     canAddTabs,
     exportAllTabsAsZip,

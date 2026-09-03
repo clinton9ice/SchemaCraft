@@ -102,17 +102,37 @@ function buildVueFlowEdges(relations: typeof parsedRelations.value, validNodeIds
         return null
       }
 
-      const edgeId = `edge_${fromTable}_${fromCol}_to_${toTable}_${toCol}_${index}`
+      const fromTableDef = parsedTables.value.find(t => t.name === fromTable)
+      const toTableDef = parsedTables.value.find(t => t.name === toTable)
+
+      let resolvedFromCol = fromCol
+      if (fromTableDef && fromTableDef.columns && fromTableDef.columns.length > 0) {
+        const match = fromTableDef.columns.find(
+          c => c.name === fromCol || c.name.toLowerCase() === fromCol.toLowerCase()
+        )
+        resolvedFromCol = match ? match.name : fromTableDef.columns[0].name
+      }
+
+      let resolvedToCol = toCol
+      if (toTableDef && toTableDef.columns && toTableDef.columns.length > 0) {
+        const match = toTableDef.columns.find(
+          c => c.name === toCol || c.name.toLowerCase() === toCol.toLowerCase()
+        )
+        const pkCol = toTableDef.columns.find(c => c.isPrimaryKey)
+        resolvedToCol = match ? match.name : pkCol ? pkCol.name : toTableDef.columns[0].name
+      }
+
+      const edgeId = `edge_${fromTable}_${resolvedFromCol}_to_${toTable}_${resolvedToCol}_${index}`
 
       return {
         id: edgeId,
         source: fromTable,
         target: toTable,
-        sourceHandle: `${fromTable}.${fromCol}-source`,
-        targetHandle: `${toTable}.${toCol}-target`,
+        sourceHandle: `${fromTable}.${resolvedFromCol}-source`,
+        targetHandle: `${toTable}.${resolvedToCol}-target`,
         type: edgeRoutingType.value,
         animated: false,
-        label: `${fromCol} → ${toCol}`,
+        label: `${resolvedFromCol} → ${resolvedToCol}`,
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 4,
         labelBgStyle: {
@@ -250,14 +270,12 @@ onBeforeUnmount(() => {
   <div
     class="relative w-full h-full overflow-hidden flex flex-col bg-[var(--canvas-bg)] select-none transition-colors duration-150"
   >
-    <!-- Canvas Top Header / Info bar (Responsive on Mobile) -->
     <div
       class="h-9 bg-[var(--header-bg)] backdrop-blur-md border-b border-[var(--node-border)] flex items-center justify-between px-3 z-10 shrink-0 select-none transition-colors duration-150"
     >
       <div
         class="flex items-center gap-1.5 sm:gap-2 text-xs text-[var(--text-primary)] font-medium min-w-0"
       >
-        <!-- Canvas Table Icon -->
         <div
           class="w-4 h-4 rounded bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0"
         >
@@ -274,10 +292,8 @@ onBeforeUnmount(() => {
           </svg>
         </div>
 
-        <!-- Title: Visible on desktop, hidden on small screens -->
         <span class="hidden sm:inline font-semibold">Schema Diagram Canvas</span>
 
-        <!-- Compact Metrics Pill (Full on desktop, compact on mobile) -->
         <span
           v-if="nodes.length"
           class="px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-mono bg-blue-950/60 text-blue-300 border border-blue-800/50 truncate"
@@ -287,7 +303,6 @@ onBeforeUnmount(() => {
         </span>
       </div>
 
-      <!-- Right status: Hidden on mobile (< 640px) to prevent overflowing -->
       <div
         class="hidden sm:flex items-center gap-3 text-[11px] text-[var(--text-muted)] font-mono shrink-0"
       >
@@ -310,11 +325,9 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Floating Canvas Controls Toolbar (Responsive) -->
     <div
       class="absolute top-11 sm:top-12 right-2 sm:right-4 z-20 flex items-center gap-0.5 sm:gap-1 bg-[var(--header-bg)]/90 backdrop-blur-md p-1 rounded-xl border border-[var(--node-border)] shadow-2xl text-[var(--text-primary)]"
     >
-      <!-- Zoom Out -->
       <button
         type="button"
         title="Zoom Out"
@@ -332,7 +345,6 @@ onBeforeUnmount(() => {
         </svg>
       </button>
 
-      <!-- Zoom Percentage / Reset -->
       <button
         type="button"
         title="Reset Zoom to 100%"
@@ -342,7 +354,6 @@ onBeforeUnmount(() => {
         {{ currentZoomPercent }}%
       </button>
 
-      <!-- Zoom In -->
       <button
         type="button"
         title="Zoom In"
@@ -363,7 +374,6 @@ onBeforeUnmount(() => {
 
       <div class="h-3.5 sm:h-4 w-px bg-[var(--node-border)] mx-0.5" />
 
-      <!-- Fit View -->
       <button
         type="button"
         title="Fit All Tables to Screen"
@@ -381,7 +391,6 @@ onBeforeUnmount(() => {
         </svg>
       </button>
 
-      <!-- Auto Layout (ELK) -->
       <button
         type="button"
         title="Rearrange Diagram with ELK"
@@ -403,7 +412,6 @@ onBeforeUnmount(() => {
         <span class="hidden sm:inline">Auto-Layout</span>
       </button>
 
-      <!-- Line Style Toggle (smoothstep vs step) -->
       <button
         type="button"
         :title="`Line Style: ${edgeRoutingType}`"
@@ -413,7 +421,6 @@ onBeforeUnmount(() => {
         {{ edgeRoutingType === 'smoothstep' ? '∼' : '⌐' }}
       </button>
 
-      <!-- Quick Export Image Button -->
       <button
         type="button"
         title="Export Diagram as PNG"
@@ -444,7 +451,6 @@ onBeforeUnmount(() => {
         </svg>
       </button>
 
-      <!-- Toggle Grid Background (Dots -> Lines -> Off) -->
       <button
         type="button"
         :title="`Grid Pattern: ${showGrid ? gridVariant : 'off'} (Click to cycle Dots / Lines / Off)`"
@@ -467,7 +473,6 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- Main Vue Flow Canvas Area -->
     <div class="flex-1 w-full h-full min-h-0 relative">
       <vue-flow
         :nodes="nodes"
@@ -483,12 +488,10 @@ onBeforeUnmount(() => {
         @pane-scroll="updateZoomState"
         @viewport-change="updateZoomState"
       >
-        <!-- Custom Database Table Node -->
         <template #node-table="nodeProps">
           <table-node :id="nodeProps.id" :data="nodeProps.data" :selected="nodeProps.selected" />
         </template>
 
-        <!-- Dynamic Multi-Pattern Canvas Grid Background -->
         <background
           v-if="showGrid"
           :pattern-color="
@@ -500,7 +503,6 @@ onBeforeUnmount(() => {
         />
       </vue-flow>
 
-      <!-- Empty State Viewport Indicator -->
       <div
         v-if="nodes.length === 0"
         class="absolute inset-0 flex flex-col items-center justify-center text-center p-6 pointer-events-none select-none z-10"

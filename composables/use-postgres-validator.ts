@@ -1,6 +1,8 @@
 import type * as MonacoType from 'monaco-editor'
 import { validateDbmlCode } from '~/utils/dbml-compiler'
 import { validatePrismaCode } from '~/utils/prisma-compiler'
+import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
+import { MAX_DDL_BYTES } from '~/utils/constants'
 
 export interface ValidationError {
   message: string
@@ -104,6 +106,40 @@ export function usePostgresValidator() {
 
     isValidating.value = true
 
+    // Sanitize before sending to server — strips comments, blank lines, and
+    // INSERT data so the WASM parser receives only structural DDL.
+    const codeToValidate = sanitizeSqlDdl(code)
+
+    // Guard: if sanitized DDL still exceeds WASM safe limit, skip the network
+    // call entirely and surface a soft warning marker instead.
+    const byteSize = new TextEncoder().encode(codeToValidate).length
+    if (byteSize > MAX_DDL_BYTES) {
+      const warnMsg =
+        `Schema is ${Math.round(byteSize / 1024)}KB after sanitizing — ` +
+        `exceeds ${Math.round(MAX_DDL_BYTES / 1024)}KB parser limit. ` +
+        `Try splitting into smaller files.`
+      validationError.value = {
+        message: warnMsg,
+        lineNumber: 1,
+        column: 1,
+        endLineNumber: 1,
+        endColumn: 1,
+      }
+      monacoInstance.editor.setModelMarkers(model, 'schema-validator', [
+        {
+          severity: monacoInstance.MarkerSeverity.Warning,
+          message: `SQL Warning: ${warnMsg}`,
+          startLineNumber: 1,
+          startColumn: 1,
+          endLineNumber: 1,
+          endColumn: 1,
+          source: 'SQL Parser',
+        },
+      ])
+      isValidating.value = false
+      return
+    }
+
     try {
       // Validate and parse through Nitro backend parser
       const res = await $fetch<{
@@ -113,7 +149,7 @@ export function usePostgresValidator() {
         error: { message?: string; cursorpos?: number } | null
       }>('/api/schema/parse', {
         method: 'POST',
-        body: { sql: code, language: 'sql' },
+        body: { sql: codeToValidate, language: 'sql' },
       })
 
       if (res && !res.success && res.error) {
@@ -150,11 +186,15 @@ export function usePostgresValidator() {
 
         validationError.value = formattedError
 
+        const errorMsg = formattedError.message.includes('offset is out of bounds')
+          ? 'Query exceeds WebAssembly memory limit. Try removing large INSERT data rows and keep only DDL statements.'
+          : formattedError.message
+
         // Apply Monaco markers (red squiggly line + hover tooltip)
         monacoInstance.editor.setModelMarkers(model, 'schema-validator', [
           {
             severity: monacoInstance.MarkerSeverity.Error,
-            message: `SQL Error: ${formattedError.message}`,
+            message: `SQL Error: ${errorMsg}`,
             startLineNumber: formattedError.lineNumber,
             startColumn: formattedError.column,
             endLineNumber: formattedError.endLineNumber,
@@ -189,11 +229,28 @@ export function usePostgresValidator() {
     }, delay)
   }
 
+  /**
+   * Cancels any pending debounce timer and clears all Monaco markers.
+   * Use when unmounting the editor or programmatically resetting state.
+   */
   function clearValidation(monacoInstance: typeof MonacoType, model: MonacoType.editor.ITextModel) {
     if (debounceTimer) {
       clearTimeout(debounceTimer)
       debounceTimer = null
     }
+    validationError.value = null
+    monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+  }
+
+  /**
+   * Immediately clears Monaco editor markers without waiting for the
+   * async validator round-trip. Call this on tab switch so stale errors
+   * from the previous tab don't bleed into the new tab's view.
+   */
+  function clearValidationMarkers(
+    monacoInstance: typeof MonacoType,
+    model: MonacoType.editor.ITextModel
+  ) {
     validationError.value = null
     monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
   }
@@ -204,5 +261,6 @@ export function usePostgresValidator() {
     validateSql,
     debouncedValidate,
     clearValidation,
+    clearValidationMarkers,
   }
 }
