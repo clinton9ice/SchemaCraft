@@ -12,6 +12,9 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui'],
 
   nitro: {
+    future: {
+      nativeSWR: true,
+    },
     serverAssets: [
       {
         baseName: 'samples',
@@ -22,19 +25,13 @@ export default defineNuxtConfig({
 
   routeRules: {
     '/api/sample-files': {
-      cache: {
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        swr: true,
-      },
+      isr: 60 * 60 * 24 * 30, // 30 days
       headers: {
         'cache-control': 'public, max-age=3600, s-maxage=2592000, stale-while-revalidate=2592000',
       },
     },
     '/api/schema/samples': {
-      cache: {
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        swr: true,
-      },
+      isr: 60 * 60 * 24 * 30, // 30 days
       headers: {
         'cache-control': 'public, max-age=3600, s-maxage=2592000, stale-while-revalidate=2592000',
       },

@@ -1,6 +1,11 @@
 import type * as MonacoType from 'monaco-editor'
-import { validateDbmlCode } from '~/utils/dbml-compiler'
-import { validatePrismaCode } from '~/utils/prisma-compiler'
+import { validateDbmlCode, sanitizeDbml } from '~/utils/dbml-compiler'
+import { validatePrismaCode, sanitizePrisma } from '~/utils/prisma-compiler'
+import { compileDrizzle } from '~/utils/drizzle-compiler'
+import { compileTypeORM } from '~/utils/typeorm-compiler'
+import { sanitizeDrizzle, sanitizeTypeORM } from '~/utils/ts-sanitizer'
+import { transformMysqlToPostgres } from '~/utils/mysql-to-postgres-transformer'
+import { detectSqlDialect } from '~/utils/sql-dialect-detector'
 import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
 import { MAX_DDL_BYTES } from '~/utils/constants'
 import type { SupportedLanguage } from '~/composables/use-schema-store'
@@ -38,8 +43,12 @@ export function usePostgresValidator() {
     const currentLang = (langOverride || activeLanguage.value || 'sql').toLowerCase()
 
     // 1. Handle DBML Validation
-    if (currentLang === 'dbml') {
-      const res = validateDbmlCode(code)
+    if (
+      currentLang === 'dbml' ||
+      /^\s*(?:Table\s+[\w"]+|Ref(?:\s+[\w_]+)?\s*:|Enum\s+[\w"]+|TableGroup\s+[\w"]+)/im.test(code)
+    ) {
+      const sanitized = sanitizeDbml(code)
+      const res = validateDbmlCode(sanitized)
       if (!res.valid && res.error) {
         const formattedError: ValidationError = {
           message: res.error.message,
@@ -70,8 +79,12 @@ export function usePostgresValidator() {
     }
 
     // 2. Handle Prisma Schema Validation
-    if (currentLang === 'prisma') {
-      const res = validatePrismaCode(code)
+    if (
+      currentLang === 'prisma' ||
+      /^\s*(?:model\s+[a-zA-Z0-9_]+\s*\{|datasource\s+\w+\s*\{|generator\s+\w+\s*\{)/im.test(code)
+    ) {
+      const sanitized = sanitizePrisma(code)
+      const res = validatePrismaCode(sanitized)
       if (!res.valid && res.error) {
         const formattedError: ValidationError = {
           message: res.error.message,
@@ -101,18 +114,83 @@ export function usePostgresValidator() {
       return
     }
 
-    // 3. Handle SQL / PostgreSQL Validation
-    // If in SQL mode but user pasted DBML/Prisma snippet, skip throwing raw SQL error
-    if (/^\s*(?:Table\s+[\w"]+|Ref(?:\s+[\w_]+)?\s*:|model\s+[a-zA-Z0-9_]+\s*\{)/im.test(code)) {
-      validationError.value = null
-      monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+    // 3. Handle Drizzle ORM Schema Validation
+    if (
+      currentLang === 'drizzle' ||
+      /\b(?:pgTable|mysqlTable|sqliteTable)\s*\(|from\s+['"]drizzle-orm/im.test(code)
+    ) {
+      try {
+        const sanitized = sanitizeDrizzle(code)
+        compileDrizzle(sanitized)
+        validationError.value = null
+        monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+        await parseSchema(code, 'drizzle')
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Drizzle validation error'
+        validationError.value = {
+          message: msg,
+          lineNumber: 1,
+          column: 1,
+          endLineNumber: 1,
+          endColumn: 1,
+        }
+        monacoInstance.editor.setModelMarkers(model, 'schema-validator', [
+          {
+            severity: monacoInstance.MarkerSeverity.Error,
+            message: `Drizzle Error: ${msg}`,
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 1,
+            source: 'Drizzle Validator',
+          },
+        ])
+      }
       return
     }
 
+    // 4. Handle TypeORM Entity Validation
+    if (
+      currentLang === 'typeorm' ||
+      /\b(?:@Entity|@Column|@PrimaryGeneratedColumn)\s*\(|from\s+['"]typeorm/im.test(code)
+    ) {
+      try {
+        const sanitized = sanitizeTypeORM(code)
+        compileTypeORM(sanitized)
+        validationError.value = null
+        monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+        await parseSchema(code, 'typeorm')
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'TypeORM validation error'
+        validationError.value = {
+          message: msg,
+          lineNumber: 1,
+          column: 1,
+          endLineNumber: 1,
+          endColumn: 1,
+        }
+        monacoInstance.editor.setModelMarkers(model, 'schema-validator', [
+          {
+            severity: monacoInstance.MarkerSeverity.Error,
+            message: `TypeORM Error: ${msg}`,
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: 1,
+            endColumn: 1,
+            source: 'TypeORM Validator',
+          },
+        ])
+      }
+      return
+    }
+
+    // 5. Handle SQL / PostgreSQL / MySQL Validation
     isValidating.value = true
 
-    // Sanitize before sending to server
-    const codeToValidate = sanitizeSqlDdl(code)
+    const isMysql = currentLang === 'mysql' || detectSqlDialect(code).isMysql
+    const codeToValidate = isMysql
+      ? sanitizeSqlDdl(transformMysqlToPostgres(code).sql)
+      : sanitizeSqlDdl(code)
 
     // Guard: if sanitized DDL still exceeds WASM safe limit, skip network call
     const byteSize = new TextEncoder().encode(codeToValidate).length
@@ -145,7 +223,10 @@ export function usePostgresValidator() {
 
     try {
       // Delegate to parseSchema: single request that updates both diagram AST and validation markers
-      const res = await parseSchema(code, currentLang as SupportedLanguage)
+      const res = await parseSchema(
+        isMysql ? transformMysqlToPostgres(code).sql : code,
+        currentLang as SupportedLanguage
+      )
 
       if (res && !res.success && res.error) {
         const err = res.error
