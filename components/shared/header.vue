@@ -1,6 +1,14 @@
 <script setup lang="ts">
-const { fileName, isDirty, isSaving, availablePresets, fetchPresets, loadSample, exportSchema } =
-  useSchemaStore()
+const {
+  fileName,
+  isDirty,
+  isSaving,
+  availablePresets,
+  fetchPresets,
+  loadSample,
+  exportSchema,
+  exportAllTabsAsZip,
+} = useSchemaStore()
 
 const { openSqlFile, saveSqlFile, exportDiagramAsImage, isExportingImage, isSavingFile } =
   useFileSystem()
@@ -11,10 +19,22 @@ const showExportModal = ref(false)
 const selectedExportFormat = ref<'typescript' | 'prisma' | 'dbml' | 'json'>('typescript')
 const exportResult = ref('')
 const isExporting = ref(false)
+const isExportingZip = ref(false)
 const copied = ref(false)
 const showImageExportMenu = ref(false)
 const showSettingsMenu = ref(false)
 const showMobileDrawer = ref(false)
+
+async function handleExportZip() {
+  showExportModal.value = false
+  showMobileDrawer.value = false
+  isExportingZip.value = true
+  try {
+    await exportAllTabsAsZip('collection.zip')
+  } finally {
+    isExportingZip.value = false
+  }
+}
 
 onMounted(async () => {
   initTheme()
@@ -259,6 +279,24 @@ function handleMobilePreset(id: string) {
             <polyline points="8 6 2 12 8 18" />
           </svg>
           <span class="hidden sm:inline">Code</span>
+        </button>
+
+        <!-- Export Collection (All Tabs ZIP) Button -->
+        <button
+          type="button"
+          :disabled="isExportingZip"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] text-xs font-medium rounded-md border border-[var(--node-border)] transition-colors cursor-pointer disabled:opacity-50"
+          title="Save and download all tabs as collection.zip"
+          @click="handleExportZip"
+        >
+          <tools-icon
+            dir="editor"
+            :icon="isExportingZip ? 'loading' : 'download'"
+            width="14"
+            height="14"
+            :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+          />
+          <span class="hidden sm:inline">Collection.zip</span>
         </button>
 
         <!-- Settings Cog Dropdown Menu -->
@@ -518,6 +556,25 @@ function handleMobilePreset(id: string) {
                 </div>
                 <span class="text-[9px] font-mono text-[var(--text-muted)]">TS/Prisma</span>
               </button>
+
+              <button
+                type="button"
+                :disabled="isExportingZip"
+                class="w-full px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-left flex items-center justify-between text-[var(--text-primary)] font-medium mt-1.5 cursor-pointer disabled:opacity-50"
+                @click="handleExportZip"
+              >
+                <div class="flex items-center gap-2.5">
+                  <tools-icon
+                    dir="editor"
+                    :icon="isExportingZip ? 'loading' : 'download'"
+                    width="16"
+                    height="16"
+                    :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+                  />
+                  <span>Download Collection (.zip)</span>
+                </div>
+                <span class="text-[9px] font-mono text-amber-300">All Tabs</span>
+              </button>
             </div>
 
             <!-- Presets Section -->
@@ -687,6 +744,21 @@ function handleMobilePreset(id: string) {
               >Processed server-side via Nitro endpoint</span
             >
             <div class="flex items-center gap-2">
+              <button
+                type="button"
+                :disabled="isExportingZip"
+                class="px-2.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-medium border border-white/10 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                @click="handleExportZip"
+              >
+                <tools-icon
+                  dir="editor"
+                  :icon="isExportingZip ? 'loading' : 'download'"
+                  width="12"
+                  height="12"
+                  :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+                />
+                <span>Download All (.zip)</span>
+              </button>
               <ui-icon-button variant="primary" size="sm" @click="copyExportResult">
                 {{ copied ? 'Copied to Clipboard!' : 'Copy Code' }}
               </ui-icon-button>

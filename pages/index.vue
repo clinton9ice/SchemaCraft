@@ -1,7 +1,9 @@
 <script setup lang="ts">
 const { sqlCode, parseSchema } = useSchemaStore()
-const { saveSqlFile } = useFileSystem()
+const { saveSqlFile, openSqlFile } = useFileSystem()
 const { toggleConsole } = useEditorConsole()
+const { validateUploadFiles, setReuploadHandler } = useUploadGuard()
+const { startUploadQueue } = useSchemaUploader()
 const {
   splitPercent,
   isDragging,
@@ -11,6 +13,8 @@ const {
   resetSplit,
   toggleMobileView,
 } = useSplitPane()
+
+const isDraggingFiles = ref(false)
 
 function handleGlobalKeydown(e: KeyboardEvent) {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -24,13 +28,48 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+function handleDragOver(e: DragEvent) {
+  e.preventDefault()
+  if (e.dataTransfer?.types?.includes('Files')) {
+    isDraggingFiles.value = true
+  }
+}
+
+function handleDragLeave(e: DragEvent) {
+  if (!e.relatedTarget || (e.relatedTarget as HTMLElement).nodeName === 'HTML') {
+    isDraggingFiles.value = false
+  }
+}
+
+async function handleDrop(e: DragEvent) {
+  e.preventDefault()
+  isDraggingFiles.value = false
+  const fileList = e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : []
+  if (fileList.length === 0) return
+
+  setReuploadHandler(() => {
+    openSqlFile()
+  })
+
+  const validation = validateUploadFiles(fileList)
+  if (validation.valid && validation.files.length > 0) {
+    await startUploadQueue(validation.files)
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleGlobalKeydown)
+  window.addEventListener('dragover', handleDragOver)
+  window.addEventListener('dragleave', handleDragLeave)
+  window.addEventListener('drop', handleDrop)
   parseSchema(sqlCode.value)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  window.removeEventListener('dragover', handleDragOver)
+  window.removeEventListener('dragleave', handleDragLeave)
+  window.removeEventListener('drop', handleDrop)
 })
 </script>
 
@@ -38,6 +77,29 @@ onBeforeUnmount(() => {
   <div
     class="h-screen w-screen flex flex-col bg-[var(--app-bg)] text-[var(--text-primary)] overflow-hidden font-sans select-none transition-colors duration-150 relative"
   >
+    <!-- Drag & Drop Visual Overlay -->
+    <div
+      v-if="isDraggingFiles"
+      class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 border-2 border-dashed border-sky-400/60 pointer-events-none transition-all select-none"
+    >
+      <div class="flex flex-col items-center gap-3 text-center">
+        <div
+          class="h-16 w-16 rounded-2xl bg-sky-500/20 border border-sky-400/30 flex items-center justify-center text-sky-400"
+        >
+          <tools-icon
+            dir="editor"
+            icon="upload"
+            width="32"
+            height="32"
+            svg-class="text-sky-400 animate-bounce"
+          />
+        </div>
+        <h2 class="text-xl font-bold text-white tracking-tight">Drop Schemas Here</h2>
+        <p class="text-sm text-neutral-300 max-w-sm">
+          Accepts up to 3 files (.sql, .dbml, .prisma, .ts), max 1MB each.
+        </p>
+      </div>
+    </div>
     <!-- Top Navigation Bar -->
     <shared-header />
 
