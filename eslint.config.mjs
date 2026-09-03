@@ -14,6 +14,7 @@ export default tseslint.config(
       'coverage/**',
       'package-lock.json',
       '**/*.d.ts',
+      'sample-db-files/**',
     ],
   },
   js.configs.recommended,

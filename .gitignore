@@ -5,3 +5,5 @@ node_modules
 .output
 .clinerules
 PROJECT_SPEC.md
+superpowers
+.DS_Store

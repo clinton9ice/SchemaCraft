@@ -26,7 +26,8 @@ const {
 
 const { toggleConsole, openConsole, addLog } = useEditorConsole()
 
-const { validationError, isValidating, validateSql, debouncedValidate } = usePostgresValidator()
+const { validationError, isValidating, validateSql, debouncedValidate, clearValidationMarkers } =
+  usePostgresValidator()
 const { saveSqlFile } = useFileSystem()
 const { currentTheme, activeThemeDef } = useThemeEngine()
 
@@ -238,6 +239,9 @@ async function initMonaco() {
           updateMonacoLanguage()
           const currentModel = editorInstance.getModel()
           if (currentModel) {
+            // Immediately wipe stale markers from the previous tab so the error
+            // doesn't bleed into the new tab's view during the debounce window.
+            clearValidationMarkers(monaco, currentModel)
             debouncedValidate(targetVal, monaco, currentModel, 100, activeLanguage.value)
           }
         }
@@ -371,10 +375,8 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="w-full h-full flex flex-col relative bg-[var(--app-bg)] overflow-hidden">
-    <!-- Tab Bar for Multi-Schema Management -->
     <features-editor-tabs />
 
-    <!-- Breadcrumb Sub-Header & Diagnostic Status -->
     <div
       class="h-7 px-3 bg-[var(--header-bg)] border-b border-[var(--node-border)] flex items-center justify-between text-xs text-[var(--text-muted)] font-mono select-none shrink-0 transition-colors duration-150"
     >
@@ -386,7 +388,6 @@ onBeforeUnmount(() => {
         <span class="text-[var(--text-primary)] font-medium truncate">{{ fileName }}</span>
       </div>
 
-      <!-- Diagnostic Status Indicator with real-time cross-language error feedback -->
       <button
         type="button"
         class="flex items-center gap-2 text-[10px] shrink-0 px-2 py-0.5 rounded hover:bg-white/5 cursor-pointer transition-colors"
@@ -450,14 +451,11 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <!-- Monaco Container -->
     <div ref="editorContainer" class="flex-1 w-full h-full relative" />
 
-    <!-- VS Code Style Status Bar (Bottom of Editor) with Language Selector & Convert-to-Tab -->
     <div
       class="h-6 px-3 bg-[var(--header-bg)] border-t border-[var(--node-border)] flex items-center justify-between text-[11px] text-[var(--text-muted)] font-mono select-none shrink-0 z-20 transition-colors duration-150"
     >
-      <!-- Left: Line / Column Info & Table Count & Problems Console Trigger -->
       <div class="flex items-center gap-3">
         <span>Ln {{ cursorPosition.line }}, Col {{ cursorPosition.column }}</span>
         <span class="text-[var(--node-border)]">|</span>
@@ -489,9 +487,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <!-- Right: Quick Convert & Professional Dropdown Selector -->
       <div class="flex items-center gap-2 relative language-selector-container">
-        <!-- Quick Convert Button -->
         <button
           type="button"
           title="Convert current schema to next format in a new tab"
@@ -504,7 +500,6 @@ onBeforeUnmount(() => {
 
         <span class="text-[var(--node-border)] hidden sm:inline">|</span>
 
-        <!-- Language Selector Dropdown Trigger -->
         <div class="relative">
           <button
             type="button"
@@ -526,7 +521,6 @@ onBeforeUnmount(() => {
             </svg>
           </button>
 
-          <!-- Language Selection Popover Menu -->
           <div
             v-if="isLanguageDropdownOpen"
             class="absolute bottom-full right-0 mb-1 w-64 p-2 rounded-xl bg-[var(--header-bg)]/95 backdrop-blur-xl border border-[var(--node-border)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100"
@@ -575,7 +569,6 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <!-- Loading Fallback -->
     <div
       v-if="isLoading"
       class="absolute inset-0 bg-[var(--app-bg)] flex flex-col items-center justify-center gap-2 text-[var(--text-muted)] z-10"

@@ -664,6 +664,90 @@ export function compilePgAst(ast?: PgAstInput | null): CompiledSchema {
     })
   }
 
+  // Pass 3: Parse ALTER TABLE statements (ADD CONSTRAINT ... FOREIGN KEY / PRIMARY KEY / UNIQUE)
+  for (const stmtWrapper of stmts) {
+    const stmt = stmtWrapper?.stmt || stmtWrapper
+    const alterStmt = (
+      stmt as {
+        AlterTableStmt?: {
+          relation?: { relname?: string }
+          cmds?: Array<{
+            AlterTableCmd?: {
+              subtype?: string
+              def?: {
+                Constraint?: {
+                  contype?: string | number
+                  conname?: string
+                  pktable?: { relname?: string }
+                  fk_attrs?: Array<{ String?: { sval?: string } }>
+                  pk_attrs?: Array<{ String?: { sval?: string } }>
+                  keys?: Array<{ String?: { sval?: string } }>
+                }
+              }
+            }
+          }>
+        }
+      }
+    )?.AlterTableStmt
+
+    if (!alterStmt) continue
+
+    const tableName = alterStmt.relation?.relname || ''
+    const targetTableObj = tables.find(t => t.name === tableName)
+
+    for (const cmdWrapper of alterStmt.cmds || []) {
+      const constraint = cmdWrapper?.AlterTableCmd?.def?.Constraint
+      if (!constraint) continue
+
+      const contype = constraint.contype
+
+      // ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY (...) REFERENCES target (...)
+      if (
+        (contype === 'CONSTR_FOREIGN' || contype === 7) &&
+        constraint.pktable &&
+        Array.isArray(constraint.fk_attrs)
+      ) {
+        const targetTable = constraint.pktable.relname || ''
+        const fkCols = constraint.fk_attrs || []
+        const pkCols = constraint.pk_attrs || []
+
+        fkCols.forEach((src, idx) => {
+          const srcColName = src?.String?.sval || ''
+          const tgtColName = pkCols[idx]?.String?.sval || 'id'
+
+          if (srcColName && targetTable) {
+            if (targetTableObj) {
+              const col = targetTableObj.columns.find(c => c.name === srcColName)
+              if (col) {
+                col.isForeignKey = true
+                col.references = { table: targetTable, column: tgtColName }
+                if (!col.constraintsList?.some(cl => cl.startsWith('REFERENCES'))) {
+                  col.constraintsList?.push(`REFERENCES ${targetTable}(${tgtColName})`)
+                }
+              }
+            }
+
+            // Only add relation if not already present
+            const exists = relations.some(
+              r =>
+                r.from === `${tableName}.${srcColName}` && r.to === `${targetTable}.${tgtColName}`
+            )
+            if (!exists) {
+              relations.push({
+                from: `${tableName}.${srcColName}`,
+                to: `${targetTable}.${tgtColName}`,
+                fromTable: tableName,
+                fromColumn: srcColName,
+                toTable: targetTable,
+                toColumn: tgtColName,
+              })
+            }
+          }
+        })
+      }
+    }
+  }
+
   return {
     tables,
     relations,

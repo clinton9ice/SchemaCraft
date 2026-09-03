@@ -7,6 +7,26 @@ import type {
 import type { SyntaxDiagnosticError } from './dbml-compiler'
 
 /**
+ * Strips block comments, single-line comments (preserving /// doc notes), and blank lines from Prisma schemas.
+ */
+export function sanitizePrisma(rawPrisma: string): string {
+  if (!rawPrisma || !rawPrisma.trim()) return ''
+
+  const noBlock = rawPrisma.replace(/\/\*[\s\S]*?\*\//g, ' ')
+  return noBlock
+    .split('\n')
+    .map(line => {
+      const trimmed = line.trim()
+      if (trimmed.startsWith('///')) return line
+      const commentIdx = line.indexOf('//')
+      return commentIdx !== -1 ? line.slice(0, commentIdx) : line
+    })
+    .filter(line => line.trim().length > 0)
+    .join('\n')
+    .trim()
+}
+
+/**
  * Validates Prisma Schema syntax with precise line/column tracking
  */
 export function validatePrismaCode(prismaCode: string): {

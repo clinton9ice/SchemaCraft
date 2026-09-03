@@ -1,6 +1,17 @@
 <script setup lang="ts">
-const { fileName, isDirty, isSaving, availablePresets, fetchPresets, loadSample, exportSchema } =
-  useSchemaStore()
+import type { SampleFileInfo } from '~/composables/use-schema-store'
+
+const {
+  fileName,
+  isDirty,
+  isSaving,
+  tabs,
+  sampleFiles,
+  fetchSampleFiles,
+  loadSampleFile,
+  exportSchema,
+  exportAllTabsAsZip,
+} = useSchemaStore()
 
 const { openSqlFile, saveSqlFile, exportDiagramAsImage, isExportingImage, isSavingFile } =
   useFileSystem()
@@ -11,14 +22,43 @@ const showExportModal = ref(false)
 const selectedExportFormat = ref<'typescript' | 'prisma' | 'dbml' | 'json'>('typescript')
 const exportResult = ref('')
 const isExporting = ref(false)
+const isExportingZip = ref(false)
 const copied = ref(false)
 const showImageExportMenu = ref(false)
 const showSettingsMenu = ref(false)
 const showMobileDrawer = ref(false)
+const isSampleDropdownOpen = ref(false)
+const sampleDropdownRef = ref<HTMLElement | null>(null)
+
+function onDocumentClick(e: MouseEvent) {
+  if (sampleDropdownRef.value && !sampleDropdownRef.value.contains(e.target as Node)) {
+    isSampleDropdownOpen.value = false
+  }
+}
+
+async function handleExportZip() {
+  showExportModal.value = false
+  showMobileDrawer.value = false
+  isExportingZip.value = true
+  try {
+    await exportAllTabsAsZip('collection.zip')
+  } finally {
+    isExportingZip.value = false
+  }
+}
 
 onMounted(async () => {
   initTheme()
-  await fetchPresets()
+  await fetchSampleFiles()
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', onDocumentClick)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof document !== 'undefined') {
+    document.removeEventListener('click', onDocumentClick)
+  }
 })
 
 async function handleOpenExport() {
@@ -66,9 +106,28 @@ function handleMobileOpenSql() {
   openSqlFile()
 }
 
-function handleMobilePreset(id: string) {
+function isTabOpen(targetFileName: string): boolean {
+  const base = targetFileName.replace(/\.[^/.]+$/, '')
+  return tabs.value.some(
+    t =>
+      t.title.toLowerCase() === targetFileName.toLowerCase() ||
+      t.title.toLowerCase() === base.toLowerCase()
+  )
+}
+
+function getExtensionBadgeClass(ext: string): string {
+  const lower = ext.toLowerCase()
+  if (lower === 'sql') return 'text-blue-400 bg-blue-500/15 border-blue-500/30'
+  if (lower === 'dbml') return 'text-amber-400 bg-amber-500/15 border-amber-500/30'
+  if (lower === 'ts' || lower === 'js') return 'text-cyan-400 bg-cyan-500/15 border-cyan-500/30'
+  if (lower === 'prisma') return 'text-emerald-400 bg-emerald-500/15 border-emerald-500/30'
+  return 'text-neutral-400 bg-neutral-800 border-neutral-700'
+}
+
+function handleSelectSample(file: SampleFileInfo) {
+  loadSampleFile(file)
+  isSampleDropdownOpen.value = false
   showMobileDrawer.value = false
-  loadSample(id)
 }
 </script>
 
@@ -76,7 +135,6 @@ function handleMobilePreset(id: string) {
   <header
     class="h-12 border-b border-[var(--node-border)] bg-[var(--header-bg)] text-[var(--text-primary)] px-3 sm:px-4 flex items-center justify-between shrink-0 select-none z-30 relative transition-colors duration-150"
   >
-    <!-- Left: Branding and File Breadcrumb -->
     <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
       <div class="flex items-center gap-2 sm:gap-2.5 shrink-0">
         <div
@@ -111,7 +169,6 @@ function handleMobilePreset(id: string) {
 
       <div class="h-4 w-px bg-neutral-700/60 mx-1 hidden md:block" />
 
-      <!-- Breadcrumbs & Dirty Indicator -->
       <div
         class="hidden md:flex items-center gap-1.5 text-xs text-[var(--text-muted)] font-mono truncate"
       >
@@ -127,28 +184,81 @@ function handleMobilePreset(id: string) {
       </div>
     </div>
 
-    <!-- Center: Preset Schemas Quick Select (Desktop only: lg:flex) -->
-    <div
-      class="hidden lg:flex items-center gap-1 bg-[var(--tab-bar-bg)] p-1 rounded-lg border border-[var(--node-border)]"
-    >
-      <span class="text-[11px] text-[var(--text-muted)] px-2 font-medium">Presets:</span>
+    <div ref="sampleDropdownRef" class="relative hidden sm:block">
       <button
-        v-for="sample in availablePresets"
-        :key="sample.id"
         type="button"
-        class="px-2.5 py-1 text-xs rounded font-medium text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-        :title="sample.description"
-        @click="loadSample(sample.id)"
+        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--tab-bar-bg)] hover:bg-white/10 text-xs font-medium text-[var(--text-primary)] border border-[var(--node-border)] transition-colors cursor-pointer"
+        :title="`Open sample database schema (${sampleFiles.length} available)`"
+        @click.stop="isSampleDropdownOpen = !isSampleDropdownOpen"
       >
-        {{ sample.label }}
+        <tools-icon dir="editor" icon="database" width="13" height="13" svg-class="text-blue-400" />
+        <span class="font-medium font-mono text-xs">sample-file</span>
+        <svg
+          class="w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-200"
+          :class="{ 'rotate-180': isSampleDropdownOpen }"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
       </button>
+
+      <div
+        v-if="isSampleDropdownOpen"
+        class="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 w-80 p-1.5 rounded-xl bg-[var(--header-bg)]/95 backdrop-blur-xl border border-[var(--node-border)] shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150"
+      >
+        <div
+          class="px-2.5 py-1.5 border-b border-[var(--node-border)] mb-1 flex items-center justify-between"
+        >
+          <span
+            class="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)] font-semibold"
+          >
+            Sample DB Files
+          </span>
+          <span class="text-[10px] font-mono text-[var(--text-muted)]">
+            {{ sampleFiles.length }} available
+          </span>
+        </div>
+        <div class="space-y-0.5 max-h-72 overflow-y-auto">
+          <button
+            v-for="file in sampleFiles"
+            :key="file.fileName"
+            type="button"
+            class="w-full px-2.5 py-2 rounded-lg flex items-center justify-between text-left transition-colors cursor-pointer hover:bg-white/10 group text-[var(--text-primary)]"
+            @click="handleSelectSample(file)"
+          >
+            <span
+              class="text-xs font-mono truncate text-[var(--text-primary)] group-hover:text-white"
+            >
+              {{ file.baseName }}
+              <sup
+                class="ml-1 px-1 py-0.2 rounded text-[9px] font-mono font-semibold border"
+                :class="getExtensionBadgeClass(file.ext)"
+              >
+                .{{ file.ext }}
+              </sup>
+            </span>
+            <span
+              v-if="isTabOpen(file.fileName)"
+              class="text-[10px] font-medium text-emerald-400 shrink-0 ml-2 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
+            >
+              open
+            </span>
+            <span
+              v-else
+              class="text-[10px] text-blue-400 opacity-0 group-hover:opacity-100 font-medium shrink-0 ml-2"
+            >
+              open ↗
+            </span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- Right: Actions -->
     <div class="flex items-center gap-1.5 sm:gap-2">
-      <!-- DESKTOP / TABLET ONLY (Hidden on screens < 520px) -->
       <div class="hidden min-[520px]:flex items-center gap-2">
-        <!-- Open File Button -->
         <button
           type="button"
           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] text-xs font-medium rounded-md border border-[var(--node-border)] transition-colors cursor-pointer"
@@ -167,7 +277,6 @@ function handleMobilePreset(id: string) {
           <span class="hidden sm:inline">Open</span>
         </button>
 
-        <!-- Export as Image Dropdown -->
         <div class="relative">
           <button
             type="button"
@@ -209,7 +318,6 @@ function handleMobilePreset(id: string) {
             </svg>
           </button>
 
-          <!-- Image Menu Popup -->
           <div
             v-if="showImageExportMenu"
             class="absolute right-0 mt-1 w-44 bg-[var(--header-bg)] border border-[var(--node-border)] rounded-lg shadow-2xl py-1 z-50 text-xs font-sans"
@@ -241,7 +349,6 @@ function handleMobilePreset(id: string) {
           </div>
         </div>
 
-        <!-- Export Schema Code Button -->
         <button
           type="button"
           class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] text-xs font-medium rounded-md border border-[var(--node-border)] transition-colors cursor-pointer"
@@ -261,7 +368,23 @@ function handleMobilePreset(id: string) {
           <span class="hidden sm:inline">Code</span>
         </button>
 
-        <!-- Settings Cog Dropdown Menu -->
+        <button
+          type="button"
+          :disabled="isExportingZip"
+          class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-[var(--text-primary)] text-xs font-medium rounded-md border border-[var(--node-border)] transition-colors cursor-pointer disabled:opacity-50"
+          title="Save and download all tabs as collection.zip"
+          @click="handleExportZip"
+        >
+          <tools-icon
+            dir="editor"
+            :icon="isExportingZip ? 'loading' : 'download'"
+            width="14"
+            height="14"
+            :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+          />
+          <span class="hidden sm:inline">Collection.zip</span>
+        </button>
+
         <div class="relative">
           <button
             type="button"
@@ -283,7 +406,6 @@ function handleMobilePreset(id: string) {
             </svg>
           </button>
 
-          <!-- Dropdown Popup -->
           <div
             v-if="showSettingsMenu"
             class="absolute right-0 mt-1 w-48 bg-[var(--header-bg)] border border-[var(--node-border)] rounded-xl shadow-2xl py-1.5 z-50 text-xs font-sans divide-y divide-[var(--node-border)]"
@@ -359,7 +481,6 @@ function handleMobilePreset(id: string) {
         </div>
       </div>
 
-      <!-- Save Button (Always visible on all screen sizes) -->
       <button
         type="button"
         :disabled="isSaving || isSavingFile"
@@ -395,7 +516,6 @@ function handleMobilePreset(id: string) {
         <ui-keyboard-shortcut class="hidden sm:inline-flex">⌘S</ui-keyboard-shortcut>
       </button>
 
-      <!-- MOBILE HAMBURGER MENU BUTTON (Visible only on screens < 520px) -->
       <button
         type="button"
         class="flex min-[520px]:hidden p-1.5 text-[var(--text-muted)] hover:text-white hover:bg-white/10 rounded-md transition-colors cursor-pointer border border-[var(--node-border)]"
@@ -410,20 +530,16 @@ function handleMobilePreset(id: string) {
       </button>
     </div>
 
-    <!-- Teleported Mobile Drawer Overlay & Sidebar -->
     <teleport to="body">
       <div v-if="showMobileDrawer" class="fixed inset-0 z-50 flex select-none md:hidden">
-        <!-- Backdrop -->
         <div
           class="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
           @click="showMobileDrawer = false"
         />
 
-        <!-- Sliding Drawer Panel -->
         <div
           class="relative ml-auto w-4/5 max-w-xs bg-[var(--header-bg)] border-l border-[var(--node-border)] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-200"
         >
-          <!-- Drawer Top Bar -->
           <div
             class="h-14 border-b border-[var(--node-border)] px-4 flex items-center justify-between"
           >
@@ -444,9 +560,7 @@ function handleMobilePreset(id: string) {
             </button>
           </div>
 
-          <!-- Drawer Body Content -->
           <div class="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
-            <!-- File Operations -->
             <div class="space-y-1.5">
               <span
                 class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1"
@@ -473,7 +587,6 @@ function handleMobilePreset(id: string) {
               </button>
             </div>
 
-            <!-- Export Options Section -->
             <div class="space-y-1.5">
               <span
                 class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1"
@@ -518,29 +631,65 @@ function handleMobilePreset(id: string) {
                 </div>
                 <span class="text-[9px] font-mono text-[var(--text-muted)]">TS/Prisma</span>
               </button>
+
+              <button
+                type="button"
+                :disabled="isExportingZip"
+                class="w-full px-3 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-left flex items-center justify-between text-[var(--text-primary)] font-medium mt-1.5 cursor-pointer disabled:opacity-50"
+                @click="handleExportZip"
+              >
+                <div class="flex items-center gap-2.5">
+                  <tools-icon
+                    dir="editor"
+                    :icon="isExportingZip ? 'loading' : 'download'"
+                    width="16"
+                    height="16"
+                    :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+                  />
+                  <span>Download Collection (.zip)</span>
+                </div>
+                <span class="text-[9px] font-mono text-amber-300">All Tabs</span>
+              </button>
             </div>
 
-            <!-- Presets Section -->
             <div class="space-y-1.5">
-              <span
-                class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1"
-              >
-                Preset Schemas
-              </span>
-              <div class="grid grid-cols-2 gap-1.5">
-                <button
-                  v-for="sample in availablePresets"
-                  :key="sample.id"
-                  type="button"
-                  class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-left text-[11px] font-medium text-[var(--text-muted)] hover:text-white truncate border border-[var(--node-border)]"
-                  @click="handleMobilePreset(sample.id)"
+              <div class="flex items-center justify-between px-1">
+                <span
+                  class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block"
                 >
-                  {{ sample.label }}
+                  sample-file
+                </span>
+                <span class="text-[10px] font-mono text-[var(--text-muted)]">
+                  {{ sampleFiles.length }} files
+                </span>
+              </div>
+              <div class="space-y-1 max-h-48 overflow-y-auto">
+                <button
+                  v-for="file in sampleFiles"
+                  :key="file.fileName"
+                  type="button"
+                  class="w-full p-2 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-between text-left text-[11px] font-medium text-[var(--text-muted)] hover:text-white truncate border border-[var(--node-border)] cursor-pointer"
+                  @click="handleSelectSample(file)"
+                >
+                  <span class="font-mono truncate">
+                    {{ file.baseName }}
+                    <sup
+                      class="ml-1 px-1 py-0.2 rounded text-[9px] font-mono font-semibold border"
+                      :class="getExtensionBadgeClass(file.ext)"
+                    >
+                      .{{ file.ext }}
+                    </sup>
+                  </span>
+                  <span
+                    v-if="isTabOpen(file.fileName)"
+                    class="text-[9px] text-emerald-400 font-mono ml-2 shrink-0 bg-emerald-500/10 px-1 py-0.5 rounded border border-emerald-500/20"
+                  >
+                    open
+                  </span>
                 </button>
               </div>
             </div>
 
-            <!-- Settings & Documentation Section -->
             <div class="space-y-1.5 pt-1">
               <span
                 class="text-[10px] font-semibold font-mono uppercase tracking-wider text-[var(--text-muted)] block px-1"
@@ -598,7 +747,6 @@ function handleMobilePreset(id: string) {
             </div>
           </div>
 
-          <!-- Drawer Footer -->
           <div
             class="p-4 border-t border-[var(--node-border)] bg-[var(--tab-bar-bg)] flex items-center justify-between text-[11px] text-[var(--text-muted)]"
           >
@@ -609,7 +757,6 @@ function handleMobilePreset(id: string) {
       </div>
     </teleport>
 
-    <!-- Nitro Export Modal -->
     <teleport to="body">
       <div
         v-if="showExportModal"
@@ -619,7 +766,6 @@ function handleMobilePreset(id: string) {
         <div
           class="w-full max-w-2xl bg-[var(--header-bg)] border border-[var(--node-border)] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150"
         >
-          <!-- Modal Header -->
           <div
             class="h-12 border-b border-[var(--node-border)] px-4 flex items-center justify-between"
           >
@@ -640,7 +786,6 @@ function handleMobilePreset(id: string) {
             </button>
           </div>
 
-          <!-- Format Tabs -->
           <div
             class="p-4 bg-[var(--tab-bar-bg)] border-b border-[var(--node-border)] flex items-center gap-2"
           >
@@ -660,7 +805,6 @@ function handleMobilePreset(id: string) {
             </button>
           </div>
 
-          <!-- Code Output Window -->
           <div
             class="p-4 flex-1 overflow-auto bg-[var(--app-bg)] font-mono text-xs text-[var(--text-primary)]"
           >
@@ -679,7 +823,6 @@ function handleMobilePreset(id: string) {
             <pre v-else class="whitespace-pre-wrap leading-relaxed">{{ exportResult }}</pre>
           </div>
 
-          <!-- Modal Footer -->
           <div
             class="h-12 border-t border-[var(--node-border)] px-4 flex items-center justify-between bg-[var(--tab-bar-bg)]"
           >
@@ -687,6 +830,21 @@ function handleMobilePreset(id: string) {
               >Processed server-side via Nitro endpoint</span
             >
             <div class="flex items-center gap-2">
+              <button
+                type="button"
+                :disabled="isExportingZip"
+                class="px-2.5 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 text-xs font-medium border border-white/10 transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                @click="handleExportZip"
+              >
+                <tools-icon
+                  dir="editor"
+                  :icon="isExportingZip ? 'loading' : 'download'"
+                  width="12"
+                  height="12"
+                  :svg-class="isExportingZip ? 'text-amber-400 animate-spin' : 'text-amber-400'"
+                />
+                <span>Download All (.zip)</span>
+              </button>
               <ui-icon-button variant="primary" size="sm" @click="copyExportResult">
                 {{ copied ? 'Copied to Clipboard!' : 'Copy Code' }}
               </ui-icon-button>
@@ -696,7 +854,6 @@ function handleMobilePreset(id: string) {
       </div>
     </teleport>
 
-    <!-- Theme Settings Modal -->
     <features-settings-theme-modal />
   </header>
 </template>

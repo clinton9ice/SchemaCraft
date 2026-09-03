@@ -36,7 +36,6 @@ function cancelRenaming() {
   <div
     class="h-9 bg-[var(--tab-bar-bg)] border-b border-[var(--node-border)] flex items-center justify-between select-none overflow-hidden shrink-0 transition-colors duration-150"
   >
-    <!-- Tabs Scroll Area -->
     <div class="flex items-center h-full overflow-x-auto no-scrollbar min-w-0 flex-1">
       <div
         v-for="tab in tabs"
@@ -53,7 +52,6 @@ function cancelRenaming() {
         @click="switchTab(tab.id)"
         @dblclick="startRenaming(tab)"
       >
-        <!-- File Icon / Language Badge -->
         <span
           class="shrink-0 text-[10px] font-sans font-bold px-1 py-0.2 rounded"
           :class="[
@@ -81,7 +79,6 @@ function cancelRenaming() {
           }}
         </span>
 
-        <!-- Tab Title (or Inline Rename Input) -->
         <div v-if="editingTabId === tab.id" class="min-w-0 flex-1">
           <input
             ref="editInputRef"
@@ -102,16 +99,13 @@ function cancelRenaming() {
           {{ tab.title }}
         </span>
 
-        <!-- Dirty Indicator (when modified) or Close Button -->
         <div class="flex items-center shrink-0 w-4 h-4 justify-center">
-          <!-- Dirty dot (shows if modified and not hovered) -->
           <span
             v-if="tab.sqlCode !== tab.lastSavedCode"
             class="w-2 h-2 rounded-full bg-amber-400 group-hover:hidden"
             title="Unsaved changes"
           />
 
-          <!-- Close Tab Button (X) -->
           <button
             type="button"
             class="w-4 h-4 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors"
@@ -123,39 +117,37 @@ function cancelRenaming() {
             title="Close tab"
             @click.stop="closeTab(tab.id)"
           >
-            <svg
-              class="w-3 h-3"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <tools-icon dir="editor" icon="close" width="12" height="12" />
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Add New Tab Button with Language Selection Dropdown -->
-    <div class="px-2 flex items-center gap-1 shrink-0 relative new-tab-container">
-      <u-tooltip text="Add New Tab (SQL / DBML / Prisma)" :popper="{ placement: 'bottom' }">
+    <div class="px-2 flex items-center gap-1.5 shrink-0 relative new-tab-container">
+      <span
+        v-if="tabs.length >= 8"
+        class="text-[10px] font-mono px-1.5 py-0.5 rounded"
+        :class="
+          tabs.length >= 10
+            ? 'bg-amber-500/20 text-amber-300 font-semibold'
+            : 'text-neutral-400 bg-white/5'
+        "
+        :title="`${tabs.length} of 10 maximum tabs open`"
+      >
+        {{ tabs.length }}/10
+      </span>
+      <u-tooltip
+        :text="
+          tabs.length >= 10 ? 'Tab limit reached (10/10)' : 'Add New Tab (SQL / DBML / Prisma)'
+        "
+        :popper="{ placement: 'bottom' }"
+      >
         <button
           type="button"
           class="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           @click="addNewTab()"
         >
-          <svg
-            class="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <tools-icon dir="editor" icon="plus" width="14" height="14" />
         </button>
       </u-tooltip>
     </div>

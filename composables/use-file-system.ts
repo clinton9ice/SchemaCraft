@@ -28,12 +28,12 @@ export function useFileSystem() {
     lastSavedCode,
     lastSaveTimestamp,
     activeTab,
-    isDirty,
-    addNewTab,
-    setSqlCode,
     parseSchema,
     detectLanguageFromCode,
   } = useSchemaStore()
+
+  const { validateUploadFiles, setReuploadHandler } = useUploadGuard()
+  const { startUploadQueue } = useSchemaUploader()
 
   const isExportingImage = ref(false)
   const isSavingFile = ref(false)
@@ -87,59 +87,38 @@ export function useFileSystem() {
               },
             },
           ],
-          multiple: false,
+          multiple: true,
         })
 
-        const handle = handles?.[0]
-        if (!handle) return
+        if (!handles || handles.length === 0) return
 
-        const file = await handle.getFile()
-        const text = await file.text()
-        const targetFileName = file.name || 'schema.sql'
-        const detectedLang = detectLanguageForFile(targetFileName, text)
+        const files = await Promise.all(handles.map(h => h.getFile()))
+        setReuploadHandler(() => {
+          openSqlFile()
+        })
 
-        if (isDirty.value) {
-          // If current tab has unsaved changes, open in a new tab
-          addNewTab(targetFileName, text, detectedLang)
-          if (activeTab.value) {
-            activeTab.value.fileHandle = handle
-          }
-        } else {
-          fileName.value = targetFileName
-          if (activeTab.value) {
-            activeTab.value.language = detectedLang
-            activeTab.value.fileHandle = handle
-          }
-          setSqlCode(text)
-          lastSavedCode.value = text
-          lastSaveTimestamp.value = new Date()
-          await parseSchema(text, detectedLang)
+        const validation = validateUploadFiles(files)
+        if (validation.valid && validation.files.length > 0) {
+          await startUploadQueue(validation.files)
         }
       } else {
         // Fallback for browsers without File System Access API
         const input = document.createElement('input')
         input.type = 'file'
+        input.multiple = true
         input.accept = '.sql,.dbml,.prisma,.ts,.ddl,.pgsql,.txt,text/plain'
         input.onchange = async (e: Event) => {
           const target = e.target as HTMLInputElement | null
-          const file = target?.files?.[0]
-          if (!file) return
+          const fileList = target?.files ? Array.from(target.files) : []
+          if (fileList.length === 0) return
 
-          const text = await file.text()
-          const targetFileName = file.name || 'schema.sql'
-          const detectedLang = detectLanguageForFile(targetFileName, text)
+          setReuploadHandler(() => {
+            openSqlFile()
+          })
 
-          if (isDirty.value) {
-            addNewTab(targetFileName, text, detectedLang)
-          } else {
-            fileName.value = targetFileName
-            if (activeTab.value) {
-              activeTab.value.language = detectedLang
-            }
-            setSqlCode(text)
-            lastSavedCode.value = text
-            lastSaveTimestamp.value = new Date()
-            await parseSchema(text, detectedLang)
+          const validation = validateUploadFiles(fileList)
+          if (validation.valid && validation.files.length > 0) {
+            await startUploadQueue(validation.files)
           }
         }
         input.click()
@@ -307,6 +286,7 @@ export function useFileSystem() {
     openSqlFile,
     saveSqlFile,
     exportDiagramAsImage,
+    detectLanguageForFile,
     isExportingImage,
     isSavingFile,
   }

@@ -72,6 +72,63 @@ describe('Drizzle ORM Compiler', () => {
     expect(rel?.toColumn).toBe('id')
   })
 
+  it('should extract relations defined via Drizzle relations() function', () => {
+    const code = `
+      import { pgTable, serial, varchar, integer } from 'drizzle-orm/pg-core'
+      import { relations } from 'drizzle-orm'
+
+      export const users = pgTable('users', {
+        id: serial('id').primaryKey(),
+        username: varchar('username', { length: 50 }).notNull(),
+      })
+
+      export const userProfiles = pgTable('user_profiles', {
+        id: serial('id').primaryKey(),
+        userId: integer('user_id'),
+      })
+
+      export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+        user: one(users, {
+          fields: [userProfiles.userId],
+          references: [users.id],
+        }),
+      }))
+    `
+
+    const result = compileDrizzle(code)
+    expect(result.tables.length).toBe(2)
+    const rel = result.relations.find(r => r.fromTable === 'user_profiles' && r.toTable === 'users')
+    expect(rel).toBeDefined()
+    expect(rel?.fromColumn).toBe('user_id')
+    expect(rel?.toColumn).toBe('id')
+  })
+
+  it('should extract relations defined via extraConfig foreignKey()', () => {
+    const code = `
+      import { pgTable, serial, integer, foreignKey } from 'drizzle-orm/pg-core'
+
+      export const users = pgTable('users', {
+        id: serial('id').primaryKey(),
+      })
+
+      export const userProfiles = pgTable('user_profiles', {
+        id: serial('id').primaryKey(),
+        userId: integer('user_id'),
+      }, (table) => ({
+        userFk: foreignKey({
+          columns: [table.userId],
+          foreignColumns: [users.id],
+        }),
+      }))
+    `
+
+    const result = compileDrizzle(code)
+    const rel = result.relations.find(r => r.fromTable === 'user_profiles' && r.toTable === 'users')
+    expect(rel).toBeDefined()
+    expect(rel?.fromColumn).toBe('user_id')
+    expect(rel?.toColumn).toBe('id')
+  })
+
   it('should generate Drizzle code from tables and relations (tablesToDrizzle)', () => {
     const tables = [
       {

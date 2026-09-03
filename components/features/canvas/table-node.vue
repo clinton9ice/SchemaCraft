@@ -87,12 +87,10 @@ function onRowMouseLeave() {
         : 'border-[var(--node-border)] hover:border-[var(--accent)]/50',
     ]"
   >
-    <!-- Table Header (Darker header with icon & badges) -->
     <div
       class="px-3.5 py-2.5 bg-[var(--node-header)] border-b border-[var(--node-border)] rounded-t-xl flex items-center justify-between"
     >
       <div class="flex items-center gap-2 min-w-0">
-        <!-- Table Icon -->
         <div
           class="w-5 h-5 rounded bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0"
         >
@@ -109,13 +107,11 @@ function onRowMouseLeave() {
           </svg>
         </div>
 
-        <!-- Table Name -->
         <span class="font-bold text-[var(--text-primary)] truncate text-[13px] tracking-tight">
           {{ data.name }}
         </span>
       </div>
 
-      <!-- Quick Metrics Pill -->
       <div class="flex items-center gap-1.5 shrink-0">
         <span
           v-if="primaryKeysCount > 0"
@@ -132,7 +128,6 @@ function onRowMouseLeave() {
       </div>
     </div>
 
-    <!-- Column Rows List -->
     <div
       class="divide-y divide-[var(--node-border)] bg-[var(--node-bg)] rounded-b-xl overflow-visible"
     >
@@ -143,7 +138,6 @@ function onRowMouseLeave() {
         @mouseenter="onRowMouseEnter($event, col)"
         @mouseleave="onRowMouseLeave"
       >
-        <!-- Target Handle (Left anchor for incoming foreign key references) -->
         <handle
           :id="`${data.name}.${col.name}-target`"
           type="target"
@@ -151,13 +145,10 @@ function onRowMouseLeave() {
           class="!w-2 !h-2 !-left-1 !bg-[var(--accent)] !border !border-[var(--node-header)] z-10"
         />
 
-        <!-- Full Column Row Container -->
         <div
           class="relative px-3 py-1.5 flex items-center justify-between hover:bg-white/5 transition-colors w-full cursor-default group/row"
         >
-          <!-- Left Column Info: Icon & Column Name -->
           <div class="flex items-center gap-2 min-w-0 pr-2">
-            <!-- Key / Type Indicator Icon -->
             <span v-if="col.isPrimaryKey" class="text-amber-400 shrink-0" title="Primary Key">
               <svg class="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
                 <path
@@ -179,7 +170,6 @@ function onRowMouseLeave() {
             </span>
             <span v-else class="w-1.5 h-1.5 rounded-full bg-neutral-500 shrink-0" />
 
-            <!-- Column Name -->
             <span
               class="truncate font-medium text-[var(--text-primary)]"
               :class="{
@@ -190,7 +180,6 @@ function onRowMouseLeave() {
               {{ col.name }}
             </span>
 
-            <!-- Constraint Badges (UQ, NN) -->
             <span
               v-if="col.isUnique && !col.isPrimaryKey"
               class="px-1 py-0.2 rounded text-[8px] font-mono bg-purple-950/60 text-purple-300 border border-purple-800/40 shrink-0"
@@ -199,7 +188,6 @@ function onRowMouseLeave() {
             </span>
           </div>
 
-          <!-- Right Column Info: Data Type & Subtle Indicator -->
           <div class="flex items-center gap-1.5 shrink-0">
             <span
               class="font-mono text-[11px] text-[var(--text-muted)] group-hover/row:text-[var(--text-primary)] transition-colors"
@@ -215,7 +203,6 @@ function onRowMouseLeave() {
               *
             </span>
 
-            <!-- Subtle Quiet Indicator Icon (Condition / Comment) -->
             <span
               v-if="hasColumnDetails(col)"
               class="w-3.5 h-3.5 flex items-center justify-center text-[var(--text-muted)] group-hover/row:text-[var(--text-primary)] transition-colors"
@@ -249,7 +236,6 @@ function onRowMouseLeave() {
           </div>
         </div>
 
-        <!-- Source Handle (Right anchor for outgoing foreign key references) -->
         <handle
           :id="`${data.name}.${col.name}-source`"
           type="source"
@@ -259,7 +245,6 @@ function onRowMouseLeave() {
       </div>
     </div>
 
-    <!-- Table Footer / Details -->
     <div
       v-if="foreignKeysCount > 0"
       class="px-3 py-1.5 bg-[var(--node-header)] border-t border-[var(--node-border)] rounded-b-xl text-[10px] text-[var(--text-muted)] font-mono flex items-center justify-between"
@@ -268,7 +253,6 @@ function onRowMouseLeave() {
       <span class="text-sky-400">{{ foreignKeysCount }} outbound FK</span>
     </div>
 
-    <!-- TELEPORTED UNCLIPPED HOVER DETAILS POPOVER -->
     <teleport to="body">
       <transition
         enter-active-class="transition duration-150 ease-out"
@@ -286,7 +270,6 @@ function onRowMouseLeave() {
             left: `${popoverPos.x}px`,
           }"
         >
-          <!-- Header: Table & Column Name & Data Type -->
           <div
             class="flex items-center justify-between gap-2 border-b border-[var(--node-border)] pb-2 mb-2"
           >
@@ -304,7 +287,6 @@ function onRowMouseLeave() {
           </div>
 
           <div class="space-y-2.5">
-            <!-- SQL Documentation Note / Comment -->
             <div
               v-if="hoveredCol.comment"
               class="bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg p-2 leading-relaxed"
@@ -326,7 +308,6 @@ function onRowMouseLeave() {
               <p class="text-[var(--text-primary)] text-[11px]">{{ hoveredCol.comment }}</p>
             </div>
 
-            <!-- Human-Readable CHECK Condition -->
             <div
               v-if="hoveredCol.checkCondition"
               class="bg-amber-950/40 border border-amber-800/50 rounded-lg p-2 leading-relaxed"
@@ -357,7 +338,6 @@ function onRowMouseLeave() {
               </div>
             </div>
 
-            <!-- Default Expression -->
             <div
               v-if="hoveredCol.defaultValue"
               class="flex items-center justify-between text-[11px] bg-[var(--app-bg)] border border-[var(--node-border)] rounded-lg px-2.5 py-1.5"
@@ -368,7 +348,6 @@ function onRowMouseLeave() {
               }}</span>
             </div>
 
-            <!-- Active Constraints Badges -->
             <div v-if="hoveredCol.constraintsList?.length" class="pt-1">
               <span
                 class="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider block mb-1"
