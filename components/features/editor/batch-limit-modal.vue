@@ -29,18 +29,13 @@ function handleDismiss() {
           <div
             class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20"
           >
-            <svg
-              class="h-7 w-7"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-              <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
-            </svg>
+            <tools-icon
+              dir="editor"
+              icon="files"
+              width="28"
+              height="28"
+              svg-class="text-indigo-400"
+            />
           </div>
 
           <!-- Dialog Header -->

@@ -34,7 +34,7 @@ const props = defineProps<IconLibProps>()
  *
  * No browser APIs are required.
  */
-const iconModules = import.meta.glob('~/assets/icons/**/*.svg', {
+const iconModules = import.meta.glob(['~/assets/svg/**/*.svg', '~/assets/icons/**/*.svg'], {
   eager: true,
   query: '?raw',
   import: 'default',
@@ -45,7 +45,7 @@ const iconRegistry = Object.create(null) as Record<string, string>
 for (const [path, svg] of Object.entries(iconModules)) {
   const normalizedPath = path
     .replace(/\\/g, '/')
-    .replace(/^.*\/app\/assets\/icons\//, '')
+    .replace(/^.*\/assets\/(?:svg|icons)\//, '')
     .replace(/\.svg$/i, '')
 
   iconRegistry[normalizedPath] = svg

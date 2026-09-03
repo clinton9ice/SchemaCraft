@@ -39,20 +39,13 @@ function handleReupload() {
           <div
             class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-400 border border-rose-500/20"
           >
-            <svg
-              class="h-7 w-7"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="12" y1="18" x2="12" y2="12" />
-              <line x1="12" y1="9" x2="12.01" y2="9" />
-            </svg>
+            <tools-icon
+              dir="editor"
+              icon="alert"
+              width="28"
+              height="28"
+              svg-class="text-rose-400"
+            />
           </div>
 
           <!-- Dialog Header -->

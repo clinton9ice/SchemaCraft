@@ -47,19 +47,13 @@ function handleDismiss() {
           <div
             class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/20"
           >
-            <svg
-              class="h-7 w-7"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M3 9h18" />
-              <path d="M9 21V9" />
-            </svg>
+            <tools-icon
+              dir="editor"
+              icon="tabs"
+              width="28"
+              height="28"
+              svg-class="text-amber-400"
+            />
           </div>
 
           <!-- Dialog Header -->
@@ -89,28 +83,22 @@ function handleDismiss() {
               :disabled="isExportingZip"
               @click="handleExportZip"
             >
-              <svg
+              <tools-icon
                 v-if="isExportingZip"
-                class="h-4 w-4 animate-spin text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-              >
-                <circle cx="12" cy="12" r="10" stroke-width="4" class="opacity-25" />
-                <path d="M4 12a8 8 0 018-8" stroke-width="4" class="opacity-75" />
-              </svg>
-              <svg
+                dir="editor"
+                icon="loading"
+                width="16"
+                height="16"
+                svg-class="animate-spin text-white"
+              />
+              <tools-icon
                 v-else-if="!hasExported"
-                class="h-4 w-4 text-white"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
+                dir="editor"
+                icon="download"
+                width="16"
+                height="16"
+                svg-class="text-white"
+              />
               <span>{{
                 hasExported ? 'Downloaded collection.zip!' : 'Export All as collection.zip'
               }}</span>

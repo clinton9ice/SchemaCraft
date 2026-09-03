@@ -123,16 +123,7 @@ function cancelRenaming() {
             title="Close tab"
             @click.stop="closeTab(tab.id)"
           >
-            <svg
-              class="w-3 h-3"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
+            <tools-icon dir="editor" icon="close" width="12" height="12" />
           </button>
         </div>
       </div>
@@ -163,16 +154,7 @@ function cancelRenaming() {
           class="w-6 h-6 rounded flex items-center justify-center text-[var(--text-muted)] hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           @click="addNewTab()"
         >
-          <svg
-            class="w-3.5 h-3.5"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <tools-icon dir="editor" icon="plus" width="14" height="14" />
         </button>
       </u-tooltip>
     </div>
