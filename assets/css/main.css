@@ -170,15 +170,20 @@
 }
 
 .vue-flow__handle {
-  width: 8px !important;
-  height: 8px !important;
+  width: 6px !important;
+  height: 6px !important;
   background: var(--accent) !important;
-  border: 2px solid var(--node-border) !important;
+  border: 1.5px solid var(--node-header) !important;
   border-radius: 9999px !important;
-  opacity: 0.9;
+  opacity: 0.6;
   transition:
     opacity 0.15s,
     transform 0.15s;
+}
+
+.vue-flow__handle.target {
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .vue-flow__handle:hover {

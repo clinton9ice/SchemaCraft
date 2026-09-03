@@ -1168,6 +1168,42 @@ onBeforeUnmount(() => {
                   </td>
                 </tr>
                 <tr class="hover:bg-white/5">
+                  <td class="px-4 py-3 font-sans font-semibold text-white">Find & Focus Table</td>
+                  <td class="px-4 py-3">
+                    <kbd
+                      class="px-2 py-0.5 bg-[#252528] rounded border border-neutral-700 font-medium"
+                      >⌘K</kbd
+                    >
+                  </td>
+                  <td class="px-4 py-3">
+                    <kbd
+                      class="px-2 py-0.5 bg-[#252528] rounded border border-neutral-700 font-medium"
+                      >Ctrl+K</kbd
+                    >
+                  </td>
+                  <td class="px-4 py-3 font-sans text-neutral-300 font-medium">
+                    Opens table search palette and navigates canvas to selected table
+                  </td>
+                </tr>
+                <tr class="hover:bg-white/5">
+                  <td class="px-4 py-3 font-sans font-semibold text-white">Toggle Error Console</td>
+                  <td class="px-4 py-3">
+                    <kbd
+                      class="px-2 py-0.5 bg-[#252528] rounded border border-neutral-700 font-medium"
+                      >⌘J</kbd
+                    >
+                  </td>
+                  <td class="px-4 py-3">
+                    <kbd
+                      class="px-2 py-0.5 bg-[#252528] rounded border border-neutral-700 font-medium"
+                      >Ctrl+J</kbd
+                    >
+                  </td>
+                  <td class="px-4 py-3 font-sans text-neutral-300 font-medium">
+                    Toggles the bottom diagnostic and validation error console
+                  </td>
+                </tr>
+                <tr class="hover:bg-white/5">
                   <td class="px-4 py-3 font-sans font-semibold text-white">Rename Tab</td>
                   <td class="px-4 py-3">
                     <kbd

@@ -3,6 +3,7 @@ import { validateDbmlCode } from '~/utils/dbml-compiler'
 import { validatePrismaCode } from '~/utils/prisma-compiler'
 import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
 import { MAX_DDL_BYTES } from '~/utils/constants'
+import type { SupportedLanguage } from '~/composables/use-schema-store'
 
 export interface ValidationError {
   message: string
@@ -23,15 +24,17 @@ export function usePostgresValidator() {
     code: string,
     monacoInstance: typeof MonacoType,
     model: MonacoType.editor.ITextModel,
-    langOverride?: string
+    langOverride?: SupportedLanguage | string
   ) {
     if (!code || !code.trim()) {
       validationError.value = null
       monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+      const { parseSchema } = useSchemaStore()
+      await parseSchema(code, langOverride as SupportedLanguage)
       return
     }
 
-    const { activeLanguage } = useSchemaStore()
+    const { activeLanguage, parseSchema } = useSchemaStore()
     const currentLang = (langOverride || activeLanguage.value || 'sql').toLowerCase()
 
     // 1. Handle DBML Validation
@@ -61,6 +64,7 @@ export function usePostgresValidator() {
       } else {
         validationError.value = null
         monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+        await parseSchema(code, 'dbml')
       }
       return
     }
@@ -92,6 +96,7 @@ export function usePostgresValidator() {
       } else {
         validationError.value = null
         monacoInstance.editor.setModelMarkers(model, 'schema-validator', [])
+        await parseSchema(code, 'prisma')
       }
       return
     }
@@ -106,12 +111,10 @@ export function usePostgresValidator() {
 
     isValidating.value = true
 
-    // Sanitize before sending to server — strips comments, blank lines, and
-    // INSERT data so the WASM parser receives only structural DDL.
+    // Sanitize before sending to server
     const codeToValidate = sanitizeSqlDdl(code)
 
-    // Guard: if sanitized DDL still exceeds WASM safe limit, skip the network
-    // call entirely and surface a soft warning marker instead.
+    // Guard: if sanitized DDL still exceeds WASM safe limit, skip network call
     const byteSize = new TextEncoder().encode(codeToValidate).length
     if (byteSize > MAX_DDL_BYTES) {
       const warnMsg =
@@ -141,16 +144,8 @@ export function usePostgresValidator() {
     }
 
     try {
-      // Validate and parse through Nitro backend parser
-      const res = await $fetch<{
-        success: boolean
-        tables: CompiledTable[]
-        relations: CompiledRelation[]
-        error: { message?: string; cursorpos?: number } | null
-      }>('/api/schema/parse', {
-        method: 'POST',
-        body: { sql: codeToValidate, language: 'sql' },
-      })
+      // Delegate to parseSchema: single request that updates both diagram AST and validation markers
+      const res = await parseSchema(code, currentLang as SupportedLanguage)
 
       if (res && !res.success && res.error) {
         const err = res.error

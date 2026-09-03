@@ -33,5 +33,6 @@ onUnmounted(() => {
     <features-editor-file-oversize-modal />
     <features-editor-batch-limit-modal />
     <features-editor-schema-upload-modal />
+    <features-editor-large-schema-export-modal />
   </div>
 </template>

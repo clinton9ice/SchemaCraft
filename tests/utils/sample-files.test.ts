@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import sampleFilesHandler from '../../server/api/sample-files/index.get'
+import sampleFilesHandler from '../../server/api/sample-files.get'
 import { useSchemaStore, type SampleFileInfo } from '../../composables/use-schema-store'
 
 describe('Sample Files API & Deduplication', () => {
   beforeEach(() => {
     vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({ success: true, tables: [], relations: [] }))
   })
-  it('reads and sanitizes files from sample-db-files directory', () => {
+  it('reads and sanitizes files from sample-db-files directory', async () => {
     // Call handler with mock event
-    const files: SampleFileInfo[] = sampleFilesHandler({} as never)
+    const files: SampleFileInfo[] = await sampleFilesHandler({} as never)
     expect(files.length).toBeGreaterThanOrEqual(4)
 
     const extensions = files.map(f => f.ext)

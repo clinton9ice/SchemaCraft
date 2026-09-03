@@ -1,3 +1,4 @@
+import { defineEventHandler, readBody } from 'h3'
 import pgQuery, { type PgQueryParser } from 'pg-query-emscripten'
 import { compilePgAst } from '~/utils/sql-compiler'
 import { parseDbml, validateDbmlCode, sanitizeDbml } from '~/utils/dbml-compiler'
@@ -8,30 +9,11 @@ import { transformMysqlToPostgres } from '~/utils/mysql-to-postgres-transformer'
 import { detectSqlDialect } from '~/utils/sql-dialect-detector'
 import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
 
-// Server-side parse cache to avoid re-parsing identical payloads across
-// concurrent frontend requests (e.g. Monaco validator + schema-store parsing simultaneously)
-interface ServerCacheEntry {
-  response: {
-    success: boolean
-    tables: unknown[]
-    relations: unknown[]
-    error: unknown
-  }
-  cachedAt: number
-}
-
-const SERVER_CACHE_MAX = 30
-const serverCache = new Map<string, ServerCacheEntry>()
-
-function cacheAndReturn<
-  T extends { success: boolean; tables: unknown[]; relations: unknown[]; error: unknown },
->(key: string, response: T): T {
-  if (serverCache.size >= SERVER_CACHE_MAX) {
-    const oldest = serverCache.keys().next().value
-    if (oldest) serverCache.delete(oldest)
-  }
-  serverCache.set(key, { response, cachedAt: Date.now() })
-  return response
+export interface ParseResult {
+  success: boolean
+  tables: unknown[]
+  relations: unknown[]
+  error: unknown
 }
 
 function hashPayload(lang: string, code: string): string {
@@ -54,36 +36,9 @@ async function createFreshParser(): Promise<PgQueryParser> {
   return typeof init === 'function' ? await init() : (init as PgQueryParser)
 }
 
-export default defineEventHandler(async event => {
+async function executeParse(language: string, code: string): Promise<ParseResult> {
   const startTime = performance.now()
-  const body = await readBody<{
-    sql?: string
-    language?: 'sql' | 'mysql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
-  }>(event)
-  const code = body?.sql || ''
-  const language = body?.language || 'sql'
   const rawBytes = Buffer.byteLength(code, 'utf8')
-
-  if (!code.trim()) {
-    return {
-      success: true,
-      tables: [],
-      relations: [],
-      error: null,
-    }
-  }
-
-  // Check server-side cache first
-  const cacheKey = hashPayload(language, code)
-  const cached = serverCache.get(cacheKey)
-  if (cached) {
-    const elapsed = (performance.now() - startTime).toFixed(1)
-    console.info(
-      `[parse:cache-hit] language=${language} raw_bytes=${rawBytes} elapsed=${elapsed}ms`
-    )
-    return cached.response
-  }
-
   console.info(`[parse:start] language=${language} raw_bytes=${rawBytes}`)
 
   // Handle Drizzle Parser
@@ -97,15 +52,15 @@ export default defineEventHandler(async event => {
       console.info(
         `[parse] Drizzle OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
-      return cacheAndReturn(cacheKey, {
+      return {
         success: true,
         tables: compiled.tables,
         relations: compiled.relations,
         error: null,
-      })
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Drizzle parsing error'
-      console.error('[parse] Drizzle error:', msg)
+      console.error('[parse] Drizzle error:', msg, JSON.stringify(code, null, 2))
       return {
         success: false,
         tables: [],
@@ -126,15 +81,15 @@ export default defineEventHandler(async event => {
       console.info(
         `[parse] TypeORM OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
-      return cacheAndReturn(cacheKey, {
+      return {
         success: true,
         tables: compiled.tables,
         relations: compiled.relations,
         error: null,
-      })
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'TypeORM parsing error'
-      console.error('[parse] TypeORM error:', msg)
+      console.error('[parse] TypeORM error:', msg, JSON.stringify(code, null, 2))
       return {
         success: false,
         tables: [],
@@ -155,27 +110,27 @@ export default defineEventHandler(async event => {
       const val = validateDbmlCode(codeToParse)
       if (!val.valid && val.error) {
         console.warn('[parse] DBML validation error:', val.error.message)
-        return cacheAndReturn(cacheKey, {
+        return {
           success: false,
           tables: [],
           relations: [],
           error: val.error,
-        })
+        }
       }
 
       const compiled = parseDbml(codeToParse)
       console.info(
         `[parse] DBML OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
-      return cacheAndReturn(cacheKey, {
+      return {
         success: true,
         tables: compiled.tables,
         relations: compiled.relations,
         error: null,
-      })
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'DBML parsing error'
-      console.error('[parse] DBML error:', msg)
+      console.error('[parse] DBML error:', msg, JSON.stringify(code, null, 2))
       return {
         success: false,
         tables: [],
@@ -196,27 +151,27 @@ export default defineEventHandler(async event => {
       const val = validatePrismaCode(codeToParse)
       if (!val.valid && val.error) {
         console.warn('[parse] Prisma validation error:', val.error.message)
-        return cacheAndReturn(cacheKey, {
+        return {
           success: false,
           tables: [],
           relations: [],
           error: val.error,
-        })
+        }
       }
 
       const compiled = parsePrisma(codeToParse)
       console.info(
         `[parse] Prisma OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
-      return cacheAndReturn(cacheKey, {
+      return {
         success: true,
         tables: compiled.tables,
         relations: compiled.relations,
         error: null,
-      })
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Prisma parsing error'
-      console.error('[parse] Prisma error:', msg)
+      console.error('[parse] Prisma error:', msg, JSON.stringify(code, null, 2))
       return {
         success: false,
         tables: [],
@@ -251,7 +206,7 @@ export default defineEventHandler(async event => {
 
     if (result && result.error) {
       console.warn('[parse:sql-syntax-error]', result.error)
-      return cacheAndReturn(cacheKey, {
+      return {
         success: false,
         tables: [],
         relations: [],
@@ -259,7 +214,7 @@ export default defineEventHandler(async event => {
           ...result.error,
           isMysql: isMysqlDialect,
         },
-      })
+      }
     }
 
     // Compile AST into diagram data structure
@@ -270,16 +225,20 @@ export default defineEventHandler(async event => {
         `relations=${compiled.relations.length} in ${elapsed}ms`
     )
 
-    return cacheAndReturn(cacheKey, {
+    return {
       success: true,
       tables: compiled.tables,
       relations: compiled.relations,
       error: null,
-    })
+    }
   } catch (err: unknown) {
     const elapsed = (performance.now() - startTime).toFixed(1)
     let msg = err instanceof Error ? err.message : 'SQL parsing error'
-    console.error(`[parse:error] SQL exception in ${elapsed}ms:`, msg)
+    console.error(
+      `[parse:error] SQL exception in ${elapsed}ms:`,
+      msg,
+      JSON.stringify(code, null, 2)
+    )
     if (msg.includes('offset is out of bounds') || msg.includes('is not a function')) {
       msg =
         'Query exceeds WebAssembly memory limit. Non-DDL statements have been stripped; please ensure only structural CREATE/ALTER TABLE statements are present.'
@@ -291,4 +250,45 @@ export default defineEventHandler(async event => {
       error: { message: msg },
     }
   }
+}
+
+// Nitro cached function: persists parsed AST responses using Nitro caching engine
+const parseSchemaCached =
+  typeof defineCachedFunction === 'function'
+    ? defineCachedFunction(
+        async (language: string, code: string): Promise<ParseResult> => {
+          return await executeParse(language, code)
+        },
+        {
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          name: 'schema-parse',
+          getKey: (language: string, code: string) => hashPayload(language, code),
+        }
+      )
+    : async (language: string, code: string): Promise<ParseResult> => {
+        return await executeParse(language, code)
+      }
+
+export default defineEventHandler(async event => {
+  const startTime = performance.now()
+  const body = await readBody<{
+    sql?: string
+    language?: 'sql' | 'mysql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
+  }>(event)
+  const code = body?.sql || ''
+  const language = body?.language || 'sql'
+
+  if (!code.trim()) {
+    return {
+      success: true,
+      tables: [],
+      relations: [],
+      error: null,
+    }
+  }
+
+  const elapsed = (performance.now() - startTime).toFixed(1)
+  const result = await parseSchemaCached(language, code)
+  console.info(`[parse:completed] language=${language} elapsed=${elapsed}ms`)
+  return result
 })

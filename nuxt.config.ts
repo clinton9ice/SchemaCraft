@@ -6,6 +6,36 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui'],
 
+  nitro: {
+    serverAssets: [
+      {
+        baseName: 'samples',
+        dir: 'sample-db-files',
+      },
+    ],
+  },
+
+  routeRules: {
+    '/api/sample-files': {
+      cache: {
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        swr: true,
+      },
+      headers: {
+        'cache-control': 'public, max-age=3600, s-maxage=2592000, stale-while-revalidate=2592000',
+      },
+    },
+    '/api/schema/samples': {
+      cache: {
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        swr: true,
+      },
+      headers: {
+        'cache-control': 'public, max-age=3600, s-maxage=2592000, stale-while-revalidate=2592000',
+      },
+    },
+  },
+
   css: ['~/assets/css/main.css'],
 
   colorMode: {

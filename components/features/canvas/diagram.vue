@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { shallowRef } from 'vue'
-import { VueFlow, useVueFlow } from '@vue-flow/core'
+import { VueFlow, useVueFlow, MarkerType } from '@vue-flow/core'
 import type { Node, Edge } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { layoutWithElk } from '~/utils/elk-layout'
@@ -13,19 +13,20 @@ export interface TableNodeData {
   comment?: string | null
 }
 
-export type TableDiagramNode = Node<TableNodeData>
+export type TableDiagramNode = Node<TableNodeData> & {
+  dimensions?: { width: number; height: number }
+}
 export type TableDiagramEdge = Edge
 
 const { parsedTables, parsedRelations, isParsing, lastSaveTimestamp, activeTabId } =
   useSchemaStore()
-const { exportDiagramAsImage, isExportingImage } = useFileSystem()
 
 // Enterprise Optimization: shallowRef eliminates proxy overhead on large graphs
 const nodes = shallowRef<TableDiagramNode[]>([])
 const edges = shallowRef<TableDiagramEdge[]>([])
 const isLayouting = ref(false)
 
-const { fitView, zoomIn, zoomOut, setViewport, getViewport } = useVueFlow()
+const { fitView, zoomIn, zoomOut, setViewport, getViewport, setCenter } = useVueFlow()
 
 const showGrid = ref(true)
 const gridVariant = ref<'dots' | 'lines'>('dots')
@@ -132,6 +133,12 @@ function buildVueFlowEdges(relations: typeof parsedRelations.value, validNodeIds
         targetHandle: `${toTable}.${resolvedToCol}-target`,
         type: edgeRoutingType.value,
         animated: false,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: 'var(--accent)',
+          width: 14,
+          height: 14,
+        },
         label: `${resolvedFromCol} → ${resolvedToCol}`,
         labelBgPadding: [4, 2] as [number, number],
         labelBgBorderRadius: 4,
@@ -250,11 +257,46 @@ function onFitViewEvent() {
   })
 }
 
+function handleFocusTable(tableName: string) {
+  if (!tableName) return
+  const cleanName = tableName.trim().toLowerCase()
+  const targetNode = nodes.value.find(n => n.id.toLowerCase() === cleanName)
+  if (!targetNode) return
+
+  // Visually highlight selected node
+  nodes.value = nodes.value.map(n => ({
+    ...n,
+    selected: n.id.toLowerCase() === cleanName,
+  }))
+
+  const nodeX = targetNode.position?.x ?? 0
+  const nodeY = targetNode.position?.y ?? 0
+  const nodeWidth = targetNode.dimensions?.width ?? 288
+  const nodeHeight = targetNode.dimensions?.height ?? 160
+
+  const centerX = nodeX + nodeWidth / 2
+  const centerY = nodeY + nodeHeight / 2
+
+  if (typeof setCenter === 'function') {
+    setCenter(centerX, centerY, { zoom: 1.15, duration: 700 })
+  } else if (typeof fitView === 'function') {
+    fitView({ nodes: [targetNode.id], duration: 700, padding: 0.5 })
+  }
+}
+
+function onFocusTableEvent(e: Event) {
+  const customEvent = e as CustomEvent<{ tableName?: string }>
+  if (customEvent.detail?.tableName) {
+    handleFocusTable(customEvent.detail.tableName)
+  }
+}
+
 onMounted(() => {
   applyElkLayout(true)
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', updateZoomState)
     window.addEventListener('schemacraft:fit-view', onFitViewEvent)
+    window.addEventListener('schemacraft:focus-table', onFocusTableEvent)
   }
 })
 
@@ -262,6 +304,7 @@ onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', updateZoomState)
     window.removeEventListener('schemacraft:fit-view', onFitViewEvent)
+    window.removeEventListener('schemacraft:focus-table', onFocusTableEvent)
   }
 })
 </script>
@@ -421,35 +464,8 @@ onBeforeUnmount(() => {
         {{ edgeRoutingType === 'smoothstep' ? '∼' : '⌐' }}
       </button>
 
-      <button
-        type="button"
-        title="Export Diagram as PNG"
-        class="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-lg hover:bg-white/10 text-[var(--text-primary)] hover:text-blue-300 transition-colors cursor-pointer"
-        @click="exportDiagramAsImage('png')"
-      >
-        <svg
-          v-if="!isExportingImage"
-          class="w-3.5 h-3.5"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <circle cx="8.5" cy="8.5" r="1.5" />
-          <polyline points="21 15 16 10 5 21" />
-        </svg>
-        <svg
-          v-else
-          class="w-3.5 h-3.5 animate-spin text-blue-400"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-      </button>
+      <!-- Table Search Dropdown Component -->
+      <shared-table-search @select-table="handleFocusTable" />
 
       <button
         type="button"
