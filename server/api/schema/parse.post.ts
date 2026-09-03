@@ -4,6 +4,8 @@ import { parseDbml, validateDbmlCode } from '~/utils/dbml-compiler'
 import { parsePrisma, validatePrismaCode } from '~/utils/prisma-compiler'
 import { compileTypeORM } from '~/utils/typeorm-compiler'
 import { compileDrizzle } from '~/utils/drizzle-compiler'
+import { transformMysqlToPostgres } from '~/utils/mysql-to-postgres-transformer'
+import { detectSqlDialect } from '~/utils/sql-dialect-detector'
 
 let parserInstance: PgQueryParser | null = null
 
@@ -17,7 +19,7 @@ async function getParser(): Promise<PgQueryParser> {
 export default defineEventHandler(async event => {
   const body = await readBody<{
     sql?: string
-    language?: 'sql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
+    language?: 'sql' | 'mysql' | 'dbml' | 'prisma' | 'typeorm' | 'drizzle'
   }>(event)
   const code = body?.sql || ''
   const language = body?.language || 'sql'
@@ -138,17 +140,24 @@ export default defineEventHandler(async event => {
     }
   }
 
-  // Handle SQL / PostgreSQL Parser
+  // Handle SQL / PostgreSQL / MySQL Parser
   try {
+    const isMysqlDialect =
+      language === 'mysql' || (language === 'sql' && detectSqlDialect(code).isMysql)
+    const codeToParse = language === 'mysql' ? transformMysqlToPostgres(code).sql : code
+
     const parser = await getParser()
-    const result = parser.parse(code)
+    const result = parser.parse(codeToParse)
 
     if (result && result.error) {
       return {
         success: false,
         tables: [],
         relations: [],
-        error: result.error,
+        error: {
+          ...result.error,
+          isMysql: isMysqlDialect,
+        },
       }
     }
 
