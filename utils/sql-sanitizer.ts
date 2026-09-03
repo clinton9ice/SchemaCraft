@@ -17,13 +17,37 @@ export function sanitizeSqlDdl(rawSql: string): string {
 
   let sql = rawSql
 
-  // 1. Strip block comments /* ... */ (including multi-line)
+  // 1. Strip block comments /* ... */ and MySQL conditional comments /*!40101 ... */
   sql = sql.replace(/\/\*[\s\S]*?\*\//g, ' ')
 
   // 2. Strip standalone INSERT INTO ... ; statements (may span multiple lines)
   sql = sql.replace(/(?:^|\n)\s*INSERT\s+INTO\s+[\s\S]*?;\s*(?=\n|$)/gi, '\n')
 
-  // 3. Strip single-line SQL comments (-- ...) line by line, keeping the line
+  // 3. Strip data modification statements: UPDATE, DELETE, TRUNCATE
+  sql = sql.replace(
+    /(?:^|\n)\s*(?:UPDATE|DELETE\s+FROM|TRUNCATE(?:\s+TABLE)?)\b[\s\S]*?;\s*(?=\n|$)/gi,
+    '\n'
+  )
+
+  // 4. Strip table locks and transaction boundaries: LOCK/UNLOCK TABLES, COMMIT, BEGIN, START TRANSACTION
+  sql = sql.replace(
+    /(?:^|\n)\s*(?:LOCK\s+TABLES|UNLOCK\s+TABLES|COMMIT|BEGIN(?:\s+TRANSACTION)?|START\s+TRANSACTION)\b[^;]*;\s*(?=\n|$)/gi,
+    '\n'
+  )
+
+  // 5. Strip database/schema creation and switching commands: USE, CREATE/DROP DATABASE, CREATE/DROP SCHEMA
+  sql = sql.replace(
+    /(?:^|\n)\s*(?:USE\s+[`"]?[\w_]+[`"]?|(?:CREATE|DROP)\s+DATABASE\s+[^;]+|(?:CREATE|DROP)\s+SCHEMA\s+[^;]+)\s*;\s*(?=\n|$)/gi,
+    '\n'
+  )
+
+  // 6. Strip session and inspection directives: SET, SHOW, DESCRIBE, EXPLAIN
+  sql = sql.replace(
+    /(?:^|\n)\s*(?:SET\s+[^;]+|SHOW\s+[^;]+|DESCRIBE\s+[^;]+|EXPLAIN\s+[^;]+)\s*;\s*(?=\n|$)/gi,
+    '\n'
+  )
+
+  // 7. Strip single-line SQL comments (-- ...) line by line, keeping the line
   //    only if there is non-comment DDL content on it
   sql = sql
     .split('\n')

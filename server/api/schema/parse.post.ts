@@ -5,6 +5,7 @@ import { parseDbml, validateDbmlCode, sanitizeDbml } from '~/utils/dbml-compiler
 import { parsePrisma, validatePrismaCode, sanitizePrisma } from '~/utils/prisma-compiler'
 import { compileTypeORM } from '~/utils/typeorm-compiler'
 import { compileDrizzle } from '~/utils/drizzle-compiler'
+import { sanitizeDrizzle, sanitizeTypeORM } from '~/utils/ts-sanitizer'
 import { transformMysqlToPostgres } from '~/utils/mysql-to-postgres-transformer'
 import { detectSqlDialect } from '~/utils/sql-dialect-detector'
 import { sanitizeSqlDdl } from '~/utils/sql-sanitizer'
@@ -48,7 +49,8 @@ async function executeParse(language: string, code: string): Promise<ParseResult
   ) {
     try {
       console.info('[parse] Running Drizzle compiler')
-      const compiled = compileDrizzle(code)
+      const codeToParse = sanitizeDrizzle(code)
+      const compiled = compileDrizzle(codeToParse)
       console.info(
         `[parse] Drizzle OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
@@ -77,7 +79,8 @@ async function executeParse(language: string, code: string): Promise<ParseResult
   ) {
     try {
       console.info('[parse] Running TypeORM compiler')
-      const compiled = compileTypeORM(code)
+      const codeToParse = sanitizeTypeORM(code)
+      const compiled = compileTypeORM(codeToParse)
       console.info(
         `[parse] TypeORM OK: tables=${compiled.tables.length} relations=${compiled.relations.length}`
       )
@@ -189,7 +192,7 @@ async function executeParse(language: string, code: string): Promise<ParseResult
     // Sanitize: strip comments, blank lines, and INSERT data before WASM parse.
     // For MySQL, transform first then sanitize; for all others sanitize directly.
     const codeToParse =
-      language === 'mysql'
+      language === 'mysql' || isMysqlDialect
         ? sanitizeSqlDdl(transformMysqlToPostgres(code).sql)
         : sanitizeSqlDdl(code)
 
